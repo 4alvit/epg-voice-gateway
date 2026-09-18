@@ -28,6 +28,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --test deploy/google-home-worker-vpc/relay.test.mjs
+      - run: node --test deploy/alexa-worker-vpc/relay.test.mjs
       - run: uv run --frozen pytest -q
       - name: Verify runtime lock matches uv.lock
         run: |

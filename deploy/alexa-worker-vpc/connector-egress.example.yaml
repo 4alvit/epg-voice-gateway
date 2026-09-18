@@ -1,0 +1,29 @@
+# Optional: add only when the existing connector has restricted egress.
+# Replace the namespaces and pod labels after inspecting your live workloads.
+# Keep the existing connector NetworkPolicy; Kubernetes combines allow rules.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: epg-voice-gateway-control-egress
+  namespace: cloudflared
+  labels:
+    app.kubernetes.io/name: epg-voice-gateway
+    app.kubernetes.io/component: alexa-control-relay
+spec:
+  podSelector:
+    matchLabels:
+      app: cloudflared
+      tunnel: media-control
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: epg-voice-gateway
+          podSelector:
+            matchLabels:
+              app: epg-voice-gateway
+      ports:
+        - protocol: TCP
+          port: 8080

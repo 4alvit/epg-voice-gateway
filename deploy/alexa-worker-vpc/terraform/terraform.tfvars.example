@@ -1,0 +1,8 @@
+# Copy outside Git and fill in an existing account, tunnel, and namespace.
+account_id        = "REPLACE_WITH_ACCOUNT_ID"
+tunnel_id         = "REPLACE_WITH_TUNNEL_UUID"
+workers_namespace = "replace-with-existing-namespace"
+worker_name       = "home-media-alexa"
+backend_ipv4      = "127.0.0.1"
+backend_port      = 8080
+publish           = false

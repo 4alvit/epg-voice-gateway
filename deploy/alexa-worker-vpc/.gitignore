@@ -1,0 +1,9 @@
+wrangler.jsonc
+.wrangler/
+node_modules/
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/*.tfplan
+terraform/*.tfvars
+terraform/*.tfvars.json
+terraform/crash.log

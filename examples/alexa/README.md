@@ -12,8 +12,22 @@ video service. Keep the provider playlist and credentials on the gateway.
 4. Configure the gateway's `/alexa` URL as the HTTPS skill endpoint. Use the exact
    skill ID in the gateway configuration. The endpoint must validate Amazon's
    signature, request timestamp, and skill ID before calling this adapter.
+   The [dedicated Worker relay](../../deploy/alexa-worker-vpc/README.md) provides
+   a restricted public control endpoint when Cloudflare zone rules block Amazon.
+   In **Build > Endpoint**, select **HTTPS**, enter the complete `/alexa` URL as
+   the default region, select the certificate option matching the endpoint's
+   trusted certificate (use the wildcard option when its DNS name is covered by
+   a wildcard certificate), and save. Remove obsolete regional
+   endpoint overrides so they cannot continue routing to a template backend.
 5. Enable development testing for your Amazon account and test from a device
    that advertises `VideoApp` in the request's supported interfaces.
+
+First enable **Development** on the **Test** page and submit **"open home
+television"**. The expected response starts **"Tell me which channel or program
+to play."** It keeps the conversation open and does not launch media. This checks
+real Amazon request delivery and signature verification independently of video.
+Say **"stop"** to close that session. A direct unsigned HTTP request must be
+rejected; it cannot substitute for this signed Amazon check.
 
 Use **"Alexa, ask home television to play Kukutiki"** or open the skill and say
 **"play Kukutiki"**. Channel queries such as **"play Example News"** use the same

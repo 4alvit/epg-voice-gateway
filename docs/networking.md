@@ -3,6 +3,15 @@
 Voice commands and video take different routes. The same gateway process
 handles both, but the ingress hosts and allowed paths keep them separate.
 
+The [dedicated Alexa Worker relay](../deploy/alexa-worker-vpc/README.md) offers a
+restricted `POST /alexa` control route over an existing tunnel, with repeatable
+Terraform, request limits, an exact public hostname, and signature preservation.
+Its Kubernetes example adds only connector-to-gateway egress when the connector
+namespace already denies that traffic. Test this network path from the actual
+connector namespace before publishing; a successful operator-machine probe does
+not establish connector reachability. Existing Google and energy relays remain
+separate deployments.
+
 ```text
 Alexa or Home Assistant
   -> control HTTPS endpoint (Cloudflare may carry this traffic)

@@ -150,6 +150,13 @@ Create a custom skill with the interaction model and settings in
 the control host's `/alexa` path and configure the exact skill ID on the server.
 The server refuses unsigned requests and requests for another skill.
 
+For Cloudflare deployments, use the dedicated
+[Alexa HTTPS relay and parameterized Terraform](deploy/alexa-worker-vpc/README.md).
+Plan A publishes only `POST /alexa` through Workers VPC to the private gateway.
+Plan B uses an ordinary tunnel after an explicit decision to disable the zone's
+Bot Fight Mode. The relay keeps media and authenticated catalogue APIs private;
+it does not replace the separate HTTPS media route.
+
 Example invocation: **"Alexa, ask home television to play Kukutiki."** The requested
 channel or current programme is searched dynamically in the shared catalogue. A device must advertise `VideoApp` support;
 rendering APL cards alone does not establish video playback capability. Alexa
