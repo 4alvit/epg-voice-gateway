@@ -27,21 +27,15 @@ resource "cloudflare_worker" "google" {
     enabled          = var.publish
     previews_enabled = false
   }
+  # The API normalizes tuning defaults for disabled features. Keep those
+  # provider-computed to avoid perpetual drift while explicitly disabling logs.
   observability = {
-    enabled            = false
-    head_sampling_rate = 0
+    enabled = false
     logs = {
-      enabled            = false
-      head_sampling_rate = 0
-      invocation_logs    = false
-      persist            = false
-      destinations       = []
+      enabled = false
     }
     traces = {
-      enabled            = false
-      head_sampling_rate = 0
-      persist            = false
-      destinations       = []
+      enabled = false
     }
   }
 
