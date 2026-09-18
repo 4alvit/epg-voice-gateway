@@ -94,6 +94,14 @@ an earlier PLAYING sample followed by a failure is not sustained acceptance.
 A successful Home Assistant service call or native Cast status alone is not
 physical picture/audio proof: verify moving video and sound on the device.
 
+Ensure the status observer cannot launch, replace, or stop a receiver app.
+Some Cast libraries automatically launch the default receiver when a media
+status request has no active media namespace. Disable that fallback and guard
+status requests against the existing namespace. If an attached observer might
+affect playback, repeat using HA state reads and a single non-launching native
+status check at the end. Preserve earlier receipts as inconclusive rather than
+treating an observer-induced app transition as a production failure.
+
 ## Common failure boundaries
 
 - **Not ready:** inspect catalog/EPG refresh success, configured IDs, clock, feed
