@@ -210,7 +210,7 @@ def test_malformed_success_responses_never_reach_cast(content):
     assert example.casts == []
 
 
-def test_script_exposure_traces_and_rest_logging_keep_dispatcher_private():
+def test_script_exposure_and_traces_keep_dispatcher_private():
     package = ExampleHarness().package
     assert "google_assistant" not in package
     google = yaml.safe_load((EXAMPLES / "google-assistant.example.yaml").read_text())
@@ -224,7 +224,19 @@ def test_script_exposure_traces_and_rest_logging_keep_dispatcher_private():
     command = package["rest_command"]["epg_voice_session"]
     assert command["headers"]["Authorization"] == SECRETS["epg_voice_gateway_authorization"]
     assert command["timeout"] == 60
-    assert package["logger"]["logs"]["homeassistant.components.rest_command"] == "warning"
+    # Global logger entries must be merged once, not duplicated across packages.
+    assert "logger" not in package
+
+
+def test_field_selectors_survive_home_assistant_package_merging():
+    fields = ExampleHarness().package["script"]["epg_voice_play_programme"]["fields"]
+    assert fields.keys() == {"query", "channel_id"}
+    for field in fields.values():
+        selector = field["selector"]
+        assert len(selector) == 1
+        # HA package merging drops empty mappings before selector validation.
+        # A bare `text: {}` disables the dispatcher after an otherwise clean reload.
+        assert selector["text"] == {"multiline": False}
 
 
 def test_all_secret_references_have_generic_documented_placeholders():

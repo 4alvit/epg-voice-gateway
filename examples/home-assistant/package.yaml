@@ -1,10 +1,5 @@
 # Load as a Home Assistant package; Google exposure is configured separately.
 # Keep the dispatcher private; expose only the fixed voice scripts below.
-logger:
-  logs:
-    # Debug logging can include the Authorization header.
-    homeassistant.components.rest_command: warning
-
 rest_command:
   epg_voice_session:
     url: !secret epg_voice_gateway_play_url
@@ -32,12 +27,14 @@ script:
         name: Programme title
         description: Title to find in the current guide; optional when a channel is supplied.
         selector:
-          text: {}
+          text:
+            multiline: false
       channel_id:
         name: Channel ID
         description: Optional verified catalogue channel, or a channel filter for the title.
         selector:
-          text: {}
+          text:
+            multiline: false
     sequence:
       - if: >-
           {{ not (query | default('', true) | string | trim)

@@ -33,7 +33,10 @@ depend on the changing title of the news broadcast.
 5. Load [`package.yaml`](package.yaml) through HA packages, or merge its sections
    into your configuration. It does not enable a Google integration. Validate
    the complete HA configuration, then reload REST commands and scripts, or
-   restart HA when required.
+   restart HA when required. Confirm the dispatcher is available after reload:
+   an installed validation check caught HA package merging dropping empty
+   `text: {}` selectors even though the configuration check reported no errors.
+   Keep the supplied `multiline: false` selector options.
 6. Run `script.play_kukutiki` or `script.play_news_channel` manually. Check the
    physical display. A successful script call alone does not establish that
    the device has decoded the video.
@@ -92,7 +95,15 @@ any caller's timeout longer when using that separate route.
   signed media URL. Disable traces in any calling automation that stores the
   response too. Do not return the session URL from the dispatcher.
 - Keep `homeassistant.components.rest_command` at `warning` or higher; debug
-  logs can include the Authorization header. The package sets this explicitly.
+  logs can include the Authorization header. Merge this once into the existing
+  global `logger.logs` configuration, rather than repeating it in packages:
+
+  ```yaml
+  logger:
+    logs:
+      homeassistant.components.rest_command: warning
+  ```
+
   Cast and HTTP diagnostics can contain media URLs; keep HA logs private and
   redact URLs before sharing them. Disabling script traces is not log redaction.
   The Cast entity can also contain its current media URL; treat HA state,
