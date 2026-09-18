@@ -202,6 +202,69 @@ new path. Those checks remain pending. See
 [channel setup and usage](google-channels.md) for the separate checks and
 rollback procedure.
 
+## Shared media search and Assist input
+
+A subsequent update added the shared channel/programme resolver and automatic
+Google channel names. The final gateway image source is `ae6163a`; the HA component also
+includes the text-only timeout adjustment in `7036647`. The HA configuration
+examples are committed as `03f897f` in the existing configuration PR.
+
+- Final local application suite: 618 passed, two optional/platform tests skipped.
+  Linux CI for the gateway source: 619 passed, one optional grammar test skipped;
+  all 106 relay tests, lint, and lock consistency checks passed. The optional
+  grammar checks were separately executed with Hassil 3.12.0, matching the
+  installed HA dependency. The text-timeout follow-up passed 108 focused HA
+  and grammar checks. HA repository validation accepted 34 YAML files and CI
+  passed for its configuration revision.
+- Independent review corrected Russian light-command interception, opposite
+  quality synonyms, order-dependent acronym collisions, and programme selection
+  after a newly overlapping EPG update. Regression checks cover these cases.
+- The live indexed snapshot contained 1,562 channels and 983 current rows.
+  CNN spelling variants selected the configured preferred channel. A missing
+  current programme returned no match; an ambiguous name required
+  clarification. Search checked the complete catalogue independently of the
+  30-name Google publication limit.
+- Installed API checks rejected missing authentication and URL-shaped text.
+  Actual node search latency during rollout ranged from approximately 0.8 to
+  2.0 seconds. Assist therefore permits four seconds per gateway call and eight
+  seconds for the complete action. Google retains its existing deadlines.
+- Initial automatic publication took 2.6–4.1 seconds from HA and exceeded its
+  two-second Google deadline. That check failed before RequestSync and its test
+  login was revoked. The final version caches immutable names per catalogue
+  import while reading selected-channel availability freshly on every request.
+  Four installed HA-to-gateway reads then took 43–58 milliseconds. Cold builds
+  and database import commits are not covered by that steady-state measurement.
+- The gateway image and modules matched the committed source. Database integrity,
+  inode, source fingerprint, Service, PVC, HLS Proxy deployment and proxy pods
+  were preserved. Only the gateway image and reviewed channel settings changed.
+- HA installation changed only the custom component and three Assist YAML files.
+  Both staged and installed checks returned zero errors. Relevant authentication,
+  Google registration and existing integration configuration were preserved;
+  unrelated live configuration drift was left intact. Protected configuration
+  and component archives were verified before one restart during an idle window.
+  HA, Google, Cast, the new service, and the configured receiver recovered.
+- Private and public SYNC retained the three stock devices and the same virtual
+  TV identity, now with 30 automatic channels and the configured short CNN aliases.
+  An independent HomeGraph inventory read confirmed the new list after RequestSync.
+  Unauthenticated access was rejected, the owner did not receive the dedicated
+  virtual TV, and both new internal APIs returned 404 on public ingress surfaces.
+  The temporary dedicated-user session was revoked and then rejected with 401.
+- Typed Assist queries in English and Russian reached the new intent and returned
+  a safe no-match response without starting playback. A subsequent
+  `play CNN on home channels` request through HA's conversation API acknowledged
+  dispatch in 4.226 seconds and started a fresh signed session. During a
+  150-second observation window the receiver reached Playing and retained that
+  session without playback loss. A final passive native snapshot confirmed
+  Playing and 148.115 seconds of timeline advancement. No native connection was
+  opened during the observation interval; the final observer blocked controls.
+  The receiver was left playing. Physical microphone recognition and current
+  human picture/audio confirmation remain separate, unverified gates.
+
+The Alexa adapter uses the new resolver in code. A read-only console check found
+Video App enabled for the separate media skill, but its endpoint still points to
+the original reflector Lambda. It requires a reachable signed gateway control
+endpoint and verification of external HTTPS media access. These changes do not establish Alexa physical video playback.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed
