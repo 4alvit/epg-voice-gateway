@@ -342,14 +342,20 @@ def create_app(
                 task.exception()
 
         verification.add_done_callback(completed)
+        stage = "verification"
+        deadline = asyncio.timeout(6)
         try:
-            async with asyncio.timeout(6):
+            async with deadline:
                 # Keep its slot occupied until the thread exits, even on timeout.
                 await asyncio.shield(verification)
+                stage = "handler"
                 return await state.alexa.handle(data)
         except GatewayError:
             raise
         except Exception:
+            if deadline.expired():
+                # Fixed categories only: never log signed bodies, URLs or identities.
+                LOGGER.warning("alexa_request_deadline_exceeded stage=%s", stage)
             # Certificate and SDK failures fail closed without logging request data.
             raise HTTPException(400, "Invalid Alexa request") from None
 

@@ -6,6 +6,7 @@ import re
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import urlsplit
@@ -505,6 +506,37 @@ def test_failed_body_verification_never_reaches_resolution_or_session_creation(a
         assert "synthetic-private" not in response.text
         run.catalog.resolve.assert_not_awaited()
         create.assert_not_called()
+
+
+@pytest.mark.parametrize("stage", ["verification", "handler"])
+def test_alexa_deadline_identifies_stage_without_logging_private_request(api, monkeypatch, caplog, stage):
+    release = Event()
+    real_timeout = asyncio.timeout
+    monkeypatch.setattr(asyncio, "timeout", lambda delay: real_timeout(0.02 if delay == 6 else delay))
+
+    def verify(headers, body):
+        if stage == "verification":
+            release.wait(2)
+
+    async def handle(payload):
+        await asyncio.sleep(2)
+
+    with api(verifier=verify) as run:
+        run.app.state.alexa.handle = AsyncMock(side_effect=handle)
+        try:
+            response = run.client.post("/alexa", headers=AMAZON_HEADERS, json=alexa_request())
+            assert response.status_code == 400
+            if stage == "verification":
+                run.app.state.alexa.handle.assert_not_awaited()
+                assert run.app.state.verification_slots._value == 3
+            messages = [record.getMessage() for record in caplog.records
+                        if record.name == "epg_voice_gateway.app"]
+            assert messages == [f"alexa_request_deadline_exceeded stage={stage}"]
+            assert SKILL_ID not in caplog.text
+            assert AMAZON_HEADERS["SignatureCertChainUrl"] not in caplog.text
+            assert AMAZON_HEADERS["Signature-256"] not in caplog.text
+        finally:
+            release.set()
 
 
 def test_verified_apl_only_device_gets_explanation_without_media_session(api):

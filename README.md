@@ -150,6 +150,13 @@ Create a custom skill with the interaction model and settings in
 the control host's `/alexa` path and configure the exact skill ID on the server.
 The server refuses unsigned requests and requests for another skill.
 
+Verified Amazon certificate chains are cached for up to five minutes, with at
+most eight entries. Concurrent requests share a certificate download, while every
+request still checks trust, certificate dates, the timestamp, and its signature.
+The gateway rejects requests when verification exceeds its deadline and logs only
+the fixed failure stage. Reliable DNS from the gateway pod is still required for
+cold downloads and refreshes; a certificate cache does not repair cluster networking.
+
 For Cloudflare deployments, use the dedicated
 [Alexa HTTPS relay and parameterized Terraform](deploy/alexa-worker-vpc/README.md).
 Plan A publishes only `POST /alexa` through Workers VPC to the private gateway.

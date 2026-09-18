@@ -61,6 +61,35 @@ If Cloudflare logs identify Bot Fight Mode, use the
 verified transport. The optional narrow VPC relay has a beta dependency and
 requires explicit deployment; it does not change the base gateway networking.
 
+### Diagnosing Alexa verification timeouts
+
+A healthy HTTP endpoint does not prove that the gateway can resolve and fetch
+Amazon's signing certificate. Repeated failures near the six-second gateway
+deadline, with `alexa_request_deadline_exceeded stage=verification`, require
+checking DNS and outbound HTTPS from the gateway pod itself. This diagnostic
+contains no request body, signature, certificate URL, device ID, or account ID.
+
+For Kubernetes, inspect the active DNS Service endpoints and test both UDP and
+TCP DNS against every resolver from the gateway's network namespace. Check A
+and AAAA queries for an internal service name and Amazon's certificate hostname.
+A Ready CoreDNS pod can still be unreachable across a broken node overlay;
+testing only the DNS Service once can select the healthy endpoint and miss it.
+
+Repair the verified routing or host-firewall fault through its persistent owner.
+For an installation that actually uses Flannel VXLAN, verify the existing
+UDP 8472 node-peer rules and the return route. Any added rule should allow only
+the required peer, interface and port while preserving existing blocklists and
+default rejection. Keep real peer addresses outside Git, preserve rollback
+files, and verify both resolver endpoints after the repair. Do not pin an
+ephemeral CoreDNS pod IP into the gateway as a workaround.
+
+The gateway caches up to eight validated certificate chains for five minutes
+and still validates each request and certificate on cache hits. Cold downloads
+and expiry refreshes need working DNS. The socket timeout does not bound system
+DNS resolution; the HTTP deadline fails closed, and a verification thread keeps
+its concurrency slot until it actually exits. Verify repeated signed requests,
+including a cold cache, rather than treating one successful retry as recovery.
+
 ## Media endpoint
 
 Set `EPG_MEDIA_BASE_URL` to the media hostname and route only `/media/` to the
