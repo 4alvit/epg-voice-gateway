@@ -94,6 +94,11 @@ an earlier PLAYING sample followed by a failure is not sustained acceptance.
 A successful Home Assistant service call or native Cast status alone is not
 physical picture/audio proof: verify moving video and sound on the device.
 
+Run this check for every candidate channel on the intended receiver. One
+successful SD stream does not validate HD sources. Keep later failures in the
+receipt even when the initial observation passed; a two-minute result does not
+prove uninterrupted long-term playback.
+
 Ensure the status observer cannot launch, replace, or stop a receiver app.
 Some Cast libraries automatically launch the default receiver when a media
 status request has no active media namespace. Disable that fallback and guard
@@ -116,6 +121,14 @@ treating an observer-induced app transition as a production failure.
 - **Playlist loads but video fails:** check every nested resource, trusted TLS,
   device DNS, range requests, encryption, and codecs. Wrapping a manifest in
   HTTPS does not make its remaining HTTP references compatible.
+- **Receiver stays idle after fetching a segment:** distinguish successful
+  upstream downloads from actual receiver decoding. Normal proxy downloads
+  followed by no further receiver requests do not establish the exact codec
+  cause. Validate another source or an explicitly configured transcoding path;
+  this gateway does not transcode.
+- **Playing stream exhausts upstream retries:** correlate segment timeout and
+  stream-stop timestamps before blaming EPG selection or account linking.
+  A later successful TCP connection does not prove media requests recovered.
 - **Stream stops after a rollout or expiry:** request playback again. The current
   implementation deliberately does not persist or indefinitely renew sessions.
 - **Stream stops when another channel is probed:** check proxy/provider limits
