@@ -43,7 +43,9 @@ depend on the changing title of the news broadcast.
 7. Keep `script.epg_voice_play_programme` unexposed to Google and Assist. Expose
    only the fixed wrappers. For an existing manual Google integration, merge
    [`google-assistant.example.yaml`](google-assistant.example.yaml) alongside
-   its project and credentials. Apply the explicit dispatcher exclusion before
+   its project configuration. For a new integration, follow
+   [First-time manual Google linking](#first-time-manual-google-linking) below.
+   Apply the explicit dispatcher exclusion before
    syncing, particularly if `expose_by_default` is enabled. Assign wrappers to
    an HA area so other household members can use them, then sync Google devices.
 8. First try **"Hey Google, activate Play Kukutiki"**. For a shorter phrase,
@@ -62,6 +64,135 @@ from another authorized HA automation, but the Google wrappers deliberately
 have fixed inputs and a fixed playback device. Add a wrapper and a Routine for
 each additional favourite programme. This setup does not use retired Google
 Conversational Actions or require Gemini.
+
+## First-time manual Google linking
+
+This household setup uses Home Assistant's manual Google Assistant integration.
+It does not require a paid Home Assistant Cloud subscription. Google links to
+HA; the private gateway API and provider credentials are not entered into the
+Google console.
+
+### Public HTTPS and the Google draft
+
+Use a public HA hostname with a trusted TLS certificate, such as
+`https://ha.example.com`. Google must reach it from outside your home network.
+Keep the HA login page, its frontend assets, and authentication-flow endpoints
+reachable. The machine endpoints must accept Google's requests without an
+extra Cloudflare Access login, service-token header, or browser challenge.
+A successful check from a home-IP allowlist does not establish this.
+
+Create a project in the [Google Home Developer Console](https://console.home.google.com/)
+and record its **project ID**, which is different from its display name. Add a
+Cloud-to-cloud integration and select the device types you will expose. Prepare
+a 144 × 144 PNG integration icon. Google requires a round mark with transparent
+space outside it; this is separate from a company-profile logo.
+[Google integration setup](https://developers.home.google.com/cloud-to-cloud/integration/create)
+
+You can use the supplied generic [Home Media icon](home-media-icon.png), with
+its editable [SVG source](home-media-icon.svg). Rename a local copy of the PNG
+to `YOUR_PROJECT_ID.png` before uploading it, as the console requires. Keep the
+deployment-specific copy outside Git.
+
+Configure these fields, replacing only the example hostname and project ID:
+
+- OAuth client ID: `https://oauth-redirect.googleusercontent.com/r/YOUR_PROJECT_ID`
+- Client secret: a nonempty alphanumeric value; HA does not use this field.
+- Authorization URL: `https://ha.example.com/auth/authorize`
+- Token URL: `https://ha.example.com/auth/token`
+- Cloud fulfillment URL: `https://ha.example.com/api/google_assistant`
+- Scopes: add `email` and `name` as two separate entries.
+- Leave HTTP Basic authentication for the client ID and secret disabled.
+- Leave App Flip and Local fulfillment disabled for the initial setup.
+
+Save the integration as a draft. These settings follow the
+[HA manual setup guide](https://www.home-assistant.io/integrations/google_assistant/#manual-setup-if-you-dont-have-home-assistant-cloud).
+
+### Minimal HA configuration
+
+Merge one `google_assistant` section into your private HA configuration:
+
+```yaml
+google_assistant:
+  project_id: YOUR_PROJECT_ID
+  report_state: false
+  expose_by_default: false
+  entity_config:
+    script.epg_voice_play_programme:
+      expose: false
+    script.play_kukutiki:
+      name: Play Kukutiki
+      expose: true
+    script.play_news_channel:
+      name: Play News Channel
+      expose: true
+```
+
+The exposure entries match `google-assistant.example.yaml`; merge them instead
+of loading two competing Google integration sections. Omit the news entry if
+you removed that optional script. Assign the wrappers to the intended HA area.
+
+No service-account JSON key is needed for this minimal configuration. HA
+2026.9.2's [configuration schema](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/components/google_assistant/__init__.py)
+permits omitting it when `report_state` is false. This differs from the full
+setup shown in HA's user guide. Validate against your installed HA version and
+restart HA after first enabling the integration.
+
+Without a service account, HA-initiated `google_assistant.request_sync` and
+proactive state reporting are unavailable; incoming Google linking, discovery,
+and commands use HA's OAuth and fulfillment endpoints. Ask Google to sync
+devices after exposure changes. The credential requirement for HA-initiated
+sync is explicit in [HA's implementation](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/components/google_assistant/http.py).
+
+For the standard reporting setup, follow HA's service-account and HomeGraph API
+instructions, store the JSON file privately, add
+`service_account: !include SERVICE_ACCOUNT.json`, and enable `report_state` if
+needed. Keep that file out of Git and public logs. It is separate from the
+gateway API token and the console's client-secret field.
+
+### Link and verify on the household account
+
+After the restart, an unauthenticated browser GET to
+`https://ha.example.com/api/google_assistant` should return **405 Method Not
+Allowed**. A 404 means the integration or route is missing; an Access login or
+Cloudflare challenge means the request did not reach the required endpoint.
+
+In the Google Home app, use **Add device → Works with Google Home**, choose
+**[test] Your integration name**, and sign in to HA. Use the Google account that
+owns the developer project. Google's scene acknowledgment is not playback
+proof: run **“Hey Google, activate Play Kukutiki”** and verify picture and audio
+on the display. Then create the shorter fixed Routine described above.
+
+Account linking grants Google renewable HA access as the user who signs in.
+The `email` and `name` entries are not entity-level HA token scopes, and exposing
+only two scenes does not restrict the underlying OAuth token to those scenes.
+Use a dedicated non-administrator HA user to avoid granting administrative
+privileges. HA's standard non-administrator role still permits reading and
+controlling all entities. Treat exposure as a discovery setting, not an
+authorization boundary; a deployment requiring token-level access to only two
+commands needs a separately scoped authorization service.
+[HA token issuance](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/components/auth/__init__.py),
+[standard user policy](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/auth/permissions/system_policies.py).
+
+For additional testers, grant the appropriate project access and have each
+tester accept the developer terms. If the draft remains hidden, Google's
+[tester activation instructions](https://developers.home.google.com/cloud-to-cloud/test#add-testers-to-your-integration)
+require opening the project's Test or Retest flow before looking again in the
+app. Household linking is separate from submitting certification test results.
+
+### Draft branding and public release
+
+The documented draft setup requires the integration icon. Company website,
+privacy URL, company logo, and contacts belong to the separate
+[company profile](https://developers.home.google.com/cloud-to-cloud/project/profile).
+Google requires that profile before certification test plans; the draft
+linking flow above does not submit it for certification. A support-site URL is
+not listed as a field in the integration-creation instructions.
+
+This distinction is not a privacy-policy exemption: Google's
+[developer policies](https://developers.home.google.com/policies) require an
+applicable privacy-policy link for integrations. Follow the current console
+validation and use information that describes your own deployment before
+sharing or publishing it. This example does not publish a Google integration.
 
 ## Dispatcher inputs and failures
 
