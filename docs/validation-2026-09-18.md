@@ -51,12 +51,69 @@ HTTP request returned 200. That service did not expose the underlying Google
 response status, so its acknowledgement is not recorded as a separate Google
 HTTP 200. The independent inventory read confirms the devices stored in
 HomeGraph; it does not prove a later EPG change automatically resynchronizes.
-Phone UI visibility, microphone recognition and playback initiated by Google
-remain separate checks.
+Catalogue recovery was checked separately below. Phone UI visibility, dynamic
+catalogue speech and successful playback initiated by Google remain separate
+checks. A subsequent fixed-shortcut voice attempt is recorded below.
 
 A transient error on HA's browser login page was also reported during these
 attempts. Its cause was not established; successful linking does not identify
 or prove a fix for that earlier browser error.
+
+## Fixed news shortcut: real voice attempt
+
+The user requested the news shortcut by voice and reported Google's
+**"Activating News Channel"** acknowledgement. HA recorded the news wrapper and
+playback dispatcher starting for that attempt. The dispatcher then encountered
+a REST connection failure approximately 10 milliseconds later; no Cast request
+was issued and the display did not begin playback.
+
+This establishes recognition and delivery of one real fixed-shortcut Google
+EXECUTE request through to the HA scripts. It does not establish dynamic
+programme-title recognition or successful video playback. HA runs script-based
+Scenes asynchronously, so Google's acknowledgement can precede a later
+dispatcher failure.
+
+The gateway process was healthy, but its catalogue had exceeded the configured
+twelve-hour freshness window. The installed `/readyz` readiness probe returned
+HTTP 503, removing the pod from its Kubernetes Service endpoints. This explained
+why HA received a connection failure instead of the gateway's structured stale
+catalogue error.
+
+Source diagnostics identified a persistent HTTP redirect from the configured
+XMLTV address. A successful DNS lookup and TCP connection still returned HTTP
+301; the gateway deliberately accepts only 200 or a validated cached 304 and
+does not follow redirects. The final canonical HTTPS source was verified
+directly, including TLS, a bounded download and parsing with the deployed
+implementation. It mapped current programmes for all configured voice channels.
+No credentials were forwarded through the redirect chain. The source address
+remains in private configuration.
+
+A separate pod-network path to one CoreDNS endpoint timed out, while the other
+endpoint worked. Host routes, neighbors and VXLAN forwarding entries were
+consistent; the precise cause of that path failure remains unresolved. No
+cluster firewall, routing or DNS settings were changed to mask it.
+
+The readiness template fix in `ce889a0` passed CI. It uses `/healthz` for Service
+readiness while retaining `/readyz` and all control API freshness checks. The
+private source URL and readiness probe were updated during an idle window.
+The replacement pod then fetched and committed a fresh catalogue. Its runtime
+source matched the validated destination, both health endpoints returned 200,
+and the Service had a Ready endpoint. Verification preserved the database and
+its integrity, the existing HLS proxy and all other runtime secret values.
+The protected provisioning files were updated to match the installed change.
+
+The HA catalogue controller recovered its choices and requested synchronization.
+A subsequent read-only HomeGraph inventory returned HTTP 200 and confirmed the
+three expected devices, with all six Home TV settings matching HA exactly.
+This verifies that particular recovery synchronization, rather than merely
+acceptance of the HA service call.
+
+A manual invocation of the installed news wrapper then returned HA HTTP 200,
+created a fresh media grant and sustained playback through a 150-second check.
+The final non-launching receiver snapshot was PLAYING with 147.578 seconds of
+timeline advancement; HA did not lose the session after playback started. The
+user separately confirmed moving video and sound on the physical display.
+This was a manual HA recovery check, not a second Google voice request.
 
 ## Playback results
 
@@ -79,12 +136,14 @@ timeout was also observed; freshness enforcement remained enabled.
 ## Remaining acceptance
 
 After accepted linking and the verified HomeGraph inventory, Google Home phone
-UI visibility, automatic catalogue resynchronization after an EPG change,
-microphone recognition and playback initiated by Google remain separate open
-checks. Human picture/audio confirmation for this version,
-repeated same-choice device playback, HD compatibility and longer source
-stability also remain open. Alexa physical playback was not established by
-these Google/Cast checks. No public integration release or PR merge occurred.
+UI visibility, continued scheduled resynchronization as programmes change,
+dynamic catalogue speech recognition and successful playback initiated by
+Google remain separate open checks. The fixed news phrase reached HA once, but
+failed before Cast dispatch; the subsequent manual recovery check passed with
+human picture/audio confirmation. Repeated same-choice device playback, HD
+compatibility and longer source stability remain open. Alexa physical playback
+was not established by these Google/Cast checks. No public integration release
+or PR merge occurred.
 
 Raw diagnostics and deployment-specific helpers remain private. Earlier native
 observer checks could implicitly launch a Cast receiver and are inconclusive;

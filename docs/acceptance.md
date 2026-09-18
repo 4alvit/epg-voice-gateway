@@ -125,6 +125,13 @@ treating an observer-induced app transition as a production failure.
   gateway's HTTP 503, also inspect Service endpoints and the installed readiness
   probe. A freshness-based probe can remove an otherwise running pod and cut
   off existing signed media sessions.
+- **Repeated feed refresh failures:** inspect the configured source's HTTP
+  status as well as DNS and TCP reachability. XMLTV fetches deliberately reject
+  redirects. If the provider moves a feed, verify the destination and a bounded
+  XMLTV response, then update the private `EPG_XMLTV_URLS` configuration. Do not
+  enable unrestricted redirects or reuse a cached body as proof of a successful
+  refresh. Apply the changed environment during an idle window and verify a
+  fresh catalogue before retrying playback. Keep source URLs out of shared logs.
 - **Alexa HTTP 403:** separate edge rejection from application signature or
   skill-ID validation. A successful browser GET does not prove signed Amazon
   POST requests can reach the handler.
