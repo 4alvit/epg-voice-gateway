@@ -68,7 +68,7 @@ Google exposes HA scripts as scenes. It does **not** pass arbitrary spoken
 programme names into script fields. The dispatcher can accept a variable query
 from another authorized HA automation, but the Google wrappers deliberately
 have fixed inputs and a fixed playback device. Additional fixed shortcuts need
-a wrapper and Routine; the dynamic selector below uses one shared handler.
+a wrapper; a Routine is optional. The dynamic selector below uses one shared handler.
 This setup does not use retired Google
 Conversational Actions or require Gemini.
 
@@ -78,6 +78,46 @@ with Google's Channel trait through an authenticated HA fulfillment wrapper.
 The existing package continues to provide its scenes and programme selector.
 The extension has its own explicit channel allowlist; it does not publish every
 playlist channel automatically or require a scene for every channel.
+
+## When Google opens YouTube instead
+
+Channel names in HomeGraph do not guarantee that Google routes a spoken media
+request to this integration. A household test published all channel aliases
+successfully, but phrases with "play" and "change the channel" still produced
+an unrecognized request or unrelated YouTube playback. Adding a language model
+behind the gateway cannot repair an utterance that Google never forwards.
+
+For a frequently used channel, add a distinct fixed scene with
+[`channel-shortcut.example.yaml`](channel-shortcut.example.yaml). It uses the
+same private dispatcher and fixed receiver as the existing news shortcut:
+
+1. Verify the intended channel's exact gateway ID and playback on the receiver.
+   Store it only in private `secrets.yaml` as `epg_voice_example_channel_id`.
+   A current guide entry is still required; the shortcut does not bypass it.
+2. Rename `play_example_channel` in both sections and replace **Example Channel**
+   with a short, distinctive English scene name. Each shortcut pins one channel;
+   it does not accept arbitrary spoken arguments or select the first substring
+   match. Keep saved traces disabled and the dispatcher unexposed.
+3. Merge the script and exposure entry into your existing HA configuration.
+   With manual Google integration, back up the affected files, check the complete
+   configuration and restart HA once in an idle window. In the tested HA 2026.9.2
+   integration, `script.reload` does not reread Google's YAML `entity_config`,
+   and reloading its config entry reuses cached configuration. A Request Sync
+   alone cannot activate an exposure entry that HA has not loaded.
+4. Sync devices for the HA account linked to Google, then check that Google's
+   stored inventory contains the expected name with type `SCENE` and trait
+   `Scene`. Existing devices should remain present. An HTTP 200 response to the
+   HA Request Sync service alone is insufficient evidence.
+5. Say **"Hey Google, activate Example Channel."** Google documents explicit
+   scene activation grammar in its [Scene trait reference](https://developers.home.google.com/cloud-to-cloud/traits/scene).
+   First verify that the command invokes the fixed script, then confirm picture
+   and sound on the actual display. This phrase deliberately names the scene;
+   do not append "on Home Channels", which refers to the separate virtual TV.
+
+Once activation works by voice, an optional Google Home Routine can map a
+preferred phrase to that scene. Test the Routine on the intended speaker too.
+This is a fixed shortcut; dynamic channel selection remains a separate feature
+with its own microphone acceptance check.
 
 ## Dynamic current-programme selector
 

@@ -475,6 +475,48 @@ minutes from startup; future starts have diagnostics disabled. The temporary
 provider observer was deleted, zero active tails were verified, and its local
 observer process was stopped.
 
+## Google named-channel speech failure and fixed scene fallback
+
+After the successful Google catalogue publication, the user tried the REN TV
+and Rainbow Television name candidates. Google either did not understand or
+started unrelated YouTube cartoons. This is a failed household speech-routing
+trial, despite correct HomeGraph names. A fresh inventory still contained all
+30 channels and the expected REN aliases.
+
+Retained logs cannot establish whether any particular spoken request reached
+the Channel adapter: successful executions are not logged, and that adapter
+calls the media player directly rather than the fixed-script dispatcher.
+No receiver history was retained for this interval. Missing script triggers
+therefore do not prove that Google sent no Channel command. The virtual TV's
+limited traits and absent media-state reporting are a compatibility item to
+review, not a demonstrated cause of the routing failure.
+
+A separate fixed scene, **Rainbow Channel**, was installed as a fallback using
+the existing private exact-channel dispatcher and configured receiver. The
+scene's channel ID lives in private HA secrets; it does not search YouTube or
+forward arbitrary speech. The reusable
+[shortcut example](../examples/home-assistant/channel-shortcut.example.yaml)
+contains only synthetic names and a secret reference. Its exact-channel dispatch
+was exercised through the existing package harness, and all 55 package tests
+passed. The recorded command for a physical trial is **"Hey Google, activate
+Rainbow Channel."**
+
+The two HA package files and one private secret were updated with protected
+backups and exact hash guards. Both the complete staged and installed HA checks
+reported zero errors. Unrelated configuration was preserved. One controlled
+HA Core restart loaded the new exposure; its container supervisor restarted
+Core within the same pod and container, so an unchanged Kubernetes restart
+counter was expected. Both Google integration entries recovered and the new
+script was initially idle and untriggered.
+
+After one Request Sync, private fulfillment, public fulfillment and Google's
+stored HomeGraph inventory all contained exactly one additional
+`script.play_rainbow_channel` device with type `SCENE` and trait `Scene`.
+The three earlier stock devices, virtual-TV identity, 30-channel lineup and
+existing aliases remained present; the dispatchers stayed hidden. The temporary
+dedicated verification login was revoked and rejection verified. These checks
+establish scene publication, not microphone recognition or physical playback.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed

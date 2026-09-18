@@ -173,6 +173,12 @@ retain previously fetched names; playback still requires a fresh catalogue.
 
 ## Use and verify
 
+If Google opens YouTube or fails to understand these phrases, use an explicit
+[fixed scene shortcut](../examples/home-assistant/README.md#when-google-opens-youtube-instead)
+for a frequently used channel. Successful publication alone has not established
+microphone routing in the recorded household trial. The fixed shortcut and
+this dynamic Channel interface have separate acceptance checks.
+
 After sync, check that Google sees **Home Channels** as
 `action.devices.types.TV` with `action.devices.traits.Channel`, with the
 expected finite `availableChannels` list. The device is command-only and does

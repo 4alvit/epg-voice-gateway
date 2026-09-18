@@ -1,0 +1,21 @@
+# Optional HA package: load alongside package.yaml after configuring its secret.
+# Rename the script and its Google exposure entry together for each shortcut.
+script:
+  play_example_channel:
+    alias: Example Channel
+    description: Play the current programme on one verified catalogue channel.
+    mode: single
+    trace:
+      stored_traces: 0
+    sequence:
+      - action: script.epg_voice_play_programme
+        data:
+          channel_id: !secret epg_voice_example_channel_id
+
+# Merge entity_config into the existing manual Google Assistant configuration.
+# Do not create a second project configuration or expose the private dispatcher.
+google_assistant:
+  entity_config:
+    script.play_example_channel:
+      name: Example Channel
+      expose: true
