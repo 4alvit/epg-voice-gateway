@@ -3,6 +3,7 @@
 import os
 import sqlite3
 import stat
+import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -28,6 +29,13 @@ def programme(title="Кукутики", identifier="kids", name="Kids", *, start
         start if start is not None else NOW - timedelta(minutes=5),
         end if end is not None else NOW + timedelta(minutes=25),
     )
+
+
+def assert_private_directory(path):
+    mode = stat.S_IMODE(path.stat().st_mode)
+    # Linux may inherit setgid from the volume without granting group access.
+    assert mode & 0o777 == 0o700
+    assert mode & (stat.S_ISUID | stat.S_ISVTX) == 0
 
 
 @pytest.fixture
@@ -56,8 +64,31 @@ def test_restart_recovers_programmes_urls_and_wall_clock_metadata(tmp_path):
         assert "private" not in repr(restarted)
         assert "synthetic-private" not in repr(restarted.resolve({"кукутики"}, NOW))
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
-    assert stat.S_IMODE(path.parent.parent.stat().st_mode) == 0o700
+    assert_private_directory(path.parent)
+    assert_private_directory(path.parent.parent)
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux directory setgid inheritance")
+def test_setgid_volume_preserves_inheritance_without_granting_group_access(tmp_path):
+    directory = tmp_path / "setgid-volume"
+    directory.mkdir(mode=0o700)
+    os.chmod(directory, 0o2700)
+    path = directory / "private" / "nested" / "guide.sqlite3"
+    match = programme()
+
+    with closing(CatalogStore(str(path))) as database:
+        database.replace([channel()], [match], 1)
+        assert database.resolve({"кукутики"}, NOW) == [match]
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o2700
+        for created in (path.parent, path.parent.parent):
+            assert_private_directory(created)
+            assert created.stat().st_mode & stat.S_ISGID
+        files = list(path.parent.iterdir())
+        assert {item.name for item in files} == {
+            "guide.sqlite3", "guide.sqlite3-wal", "guide.sqlite3-shm",
+        }
+        for item in files:
+            assert stat.S_IMODE(item.stat().st_mode) == 0o600
 
 
 def test_existing_parent_permissions_are_preserved_and_database_is_private(tmp_path):

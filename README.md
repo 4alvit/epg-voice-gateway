@@ -10,6 +10,13 @@ guide for each request. Downloaded guides are cached with HTTP validators, so a
 server that supports conditional requests need not resend an unchanged feed.
 The first version uses existing k3s storage and requires no cloud database account.
 
+SQLite provides the database engine; this project owns the XMLTV import and
+search schema. Keeping the catalogue beside the gateway lets voice queries use
+the last fresh snapshot without contacting an external database. A managed
+database, including an Oracle Cloud deployment, is an optional future migration
+if multiple gateway instances need to share writes or serve separate households.
+It is not required for the current single-instance deployment.
+
 The initial implementation serves one household. Operator configuration and
 credentials belong in Kubernetes Secrets or a private environment file.
 Multi-household account linking is not implemented.
