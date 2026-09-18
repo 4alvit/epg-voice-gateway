@@ -29,6 +29,14 @@ real Amazon request delivery and signature verification independently of video.
 Say **"stop"** to close that session. A direct unsigned HTTP request must be
 rejected; it cannot substitute for this signed Amazon check.
 
+If conversational simulation stops before showing Skill I/O, use **Manual
+JSON** with a `LaunchRequest`, the exact skill application ID, `locale: en-US`,
+and a freshly generated UTC timestamp. Submit to the saved default endpoint and
+require **SUCCESSFUL** with the same help response, `shouldEndSession: false`,
+and no video directive. Manual JSON is stateless, so it needs no subsequent
+stop command. A generic console error is not a successful endpoint test; check
+the gateway path and retry with a fresh timestamp without disabling validation.
+
 Use **"Alexa, ask home television to play Kukutiki"** or open the skill and say
 **"play Kukutiki"**. Channel queries such as **"play Example News"** use the same
 [dynamic resolver](../../docs/media-search.md), including aliases and conservative

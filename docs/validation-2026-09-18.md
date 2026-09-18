@@ -260,10 +260,58 @@ examples are committed as `03f897f` in the existing configuration PR.
   The receiver was left playing. Physical microphone recognition and current
   human picture/audio confirmation remain separate, unverified gates.
 
-The Alexa adapter uses the new resolver in code. A read-only console check found
-Video App enabled for the separate media skill, but its endpoint still points to
-the original reflector Lambda. It requires a reachable signed gateway control
-endpoint and verification of external HTTPS media access. These changes do not establish Alexa physical video playback.
+At the end of the resolver rollout, a read-only console check found Video App
+enabled for the separate media skill, while its endpoint still pointed to the
+original reflector Lambda. The later control endpoint rollout is recorded below.
+
+## Dedicated Alexa HTTPS control endpoint
+
+The dedicated relay from `920d3a9` was deployed through its own protected
+Terraform state. Its initial plan created exactly one VPC Service, Worker,
+immutable version, and deployment. A second plan changed only that Worker's
+publication flag. The subsequent plan reported no changes.
+
+Before publication, the single active tunnel connector was matched to the
+tested Kubernetes pod, including its connector ID and QUIC connections. Its
+existing egress policy initially blocked the gateway port. One additive policy
+then allowed only that connector's traffic to the gateway's namespace, app label,
+and HTTP port. Connector-origin health checks returned 200 and unsigned Alexa
+requests returned 400. The unrelated HLS Proxy remained blocked. Existing
+policies and services were preserved; no application or connector restarted.
+
+Public TLS verification accepted the endpoint's trusted wildcard certificate.
+Nine public checks verified route rejection, private API/media isolation, and
+invalid-signature rejection at the gateway through the VPC path. Local relay
+tests passed all 93 cases; Terraform formatting and validation passed against
+provider 5.24.0. The runtime relay hash matched the committed source. Existing
+Workers, VPC Services, account namespace, subscriptions, entitlements and Workers
+account settings were unchanged. No billing, DNS or zone-security change was
+part of this rollout. Generic configuration and Plan A/Plan B instructions are
+in [the relay guide](../deploy/alexa-worker-vpc/README.md); real deployment inputs,
+state, rollback information and evidence remain outside Git.
+
+The separate media skill's HTTPS manifest was saved with the wildcard certificate
+option, no regional overrides, and development testing enabled. Its existing
+English model rebuilt successfully with zero errors and warnings.
+
+An actual Amazon-signed `LaunchRequest` submitted through the console's Manual
+JSON tool then completed with **SUCCESSFUL** and the gateway's help response:
+"Tell me which channel or program to play. For example, say, play CNN or play
+Kukutiki." A temporary status-only observer independently recorded the matching
+POST with HTTP 200 and no Worker exception. The gateway's signature, certificate,
+timestamp and exact skill-ID checks remained enabled. No video was requested.
+This establishes the signed control path; it does not establish microphone
+recognition or physical video playback.
+
+The console's conversational simulator had returned an unsupported-device
+message, and two earlier Manual JSON attempts reported an unspecified console
+error. Their causes were not established. The successful fresh Manual JSON
+request is the acceptance evidence; the earlier errors are not proof that
+Video App is categorically unsupported by the simulator. Temporary diagnostic
+streaming was removed, with no active tails or persistent request logging left.
+
+CI for `920d3a9` passed: Python 619 passed and one skipped, Google relay 106
+passed, Alexa relay 93 passed, Ruff passed, and runtime lock consistency passed.
 
 ## Remaining acceptance
 
