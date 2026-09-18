@@ -458,6 +458,10 @@ A separate `ask home television to play ren tv` command was sent to the normal
 Alexa display. Its signed request returned HTTP 200 with no Worker exception.
 That is control-path acceptance; physical REN picture/audio confirmation and
 microphone recognition remain separate from the injected text command.
+The user subsequently confirmed that REN playback started on Alexa. This
+establishes household playback acceptance for the selected HD variant on that
+device; it does not establish Google/Lenovo compatibility, sustained playback,
+or recognition of the phrase spoken into a microphone.
 
 The follow-up image passed the same source, configuration, database and service
 preservation checks. An initial verification connected before application
@@ -481,9 +485,9 @@ open. The named-channel microphone and physical playback checks are recorded
 separately above. HD compatibility and longer source stability also remain open.
 Alexa CNN playback has the separate household confirmation above. The
 refrigerator's APL attempt was rejected for runtime incompatibility. Physical
-APL playback/controls on a compatible target, REN picture/audio and microphone
-recognition remain separate gates. No public integration release or PR merge
-occurred.
+APL playback/controls on a compatible target, Google REN playback and microphone
+recognition remain separate gates. Alexa REN playback now has household
+confirmation above. No public integration release or PR merge occurred.
 
 Raw diagnostics and deployment-specific helpers remain private. Earlier native
 observer checks could implicitly launch a Cast receiver and are inconclusive;
