@@ -79,7 +79,10 @@ The service does not accept a target entity, URL, or channel ID from the sentenc
 It rechecks the caller's permission after obtaining a grant and before dispatch.
 Concurrent Google and Assist channel changes use the same guard. A timeout after
 receiver dispatch may still leave an accepted command playing, so inspect the
-screen before repeating requests. Normal Home Assistant traces can contain query
+screen before repeating requests. Free-text playback allows up to four seconds
+for the gateway request and eight seconds for the complete action, including
+receiver dispatch. The shorter Google fulfillment time limits are unchanged.
+Normal Home Assistant traces can contain query
 text and the internal media-player action; treat Home Assistant backups and
 diagnostic exports as private.
 

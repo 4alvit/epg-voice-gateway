@@ -55,6 +55,7 @@ async def test_text_playback_uses_fixed_receiver_real_grant_and_actual_user(runt
     }
     value.request_response.assert_awaited_once_with(
         "/v1/play-text", {"query": "play Example News"}, accepted_statuses=(200, 404, 409),
+        timeout=4,
     )
     call = value.hass.services.async_call.await_args
     assert call.args == ("media_player", "play_media", {
@@ -177,7 +178,7 @@ async def test_google_and_text_share_one_concurrency_guard(runtime):
 
 async def test_text_timeout_releases_guard_without_disclosing_exception(runtime, runtime_module, monkeypatch):
     value, user, _ = runtime
-    monkeypatch.setattr(runtime_module, "OPERATION_TIMEOUT", 0.01)
+    monkeypatch.setattr(runtime_module, "TEXT_OPERATION_TIMEOUT", 0.01)
 
     async def slow(*_args, **_kwargs):
         await asyncio.sleep(10)
@@ -188,6 +189,22 @@ async def test_text_timeout_releases_guard_without_disclosing_exception(runtime,
     value.hass.services.async_call.assert_not_awaited()
 
 
+async def test_text_budget_is_independent_of_the_short_google_budget(runtime, runtime_module, monkeypatch):
+    value, user, _ = runtime
+    assert runtime_module.OPERATION_TIMEOUT == 3.5
+    assert runtime_module.TEXT_OPERATION_TIMEOUT == 8
+    monkeypatch.setattr(runtime_module, "OPERATION_TIMEOUT", 0.001)
+    monkeypatch.setattr(runtime_module, "TEXT_OPERATION_TIMEOUT", 0.2)
+
+    async def slower_query(*_args, **_kwargs):
+        await asyncio.sleep(0.01)
+        return 200, text_grant()
+
+    value.request_response = AsyncMock(side_effect=slower_query)
+    assert (await value.play_query(user, "Example News"))["status"] == "accepted"
+    value.hass.services.async_call.assert_awaited_once()
+
+
 async def test_text_transport_keeps_typed_errors_bounded_and_credential_free(runtime, runtime_module):
     value, _, _ = runtime
     body = {"error": "ambiguous_media", "matches": [{"channel_name": "A"}, {"channel_name": "B"}]}
@@ -195,12 +212,13 @@ async def test_text_transport_keeps_typed_errors_bounded_and_credential_free(run
     value.hass.session = SimpleNamespace(request=send)
     result = await runtime_module.Runtime.request_response(
         value, "/v1/play-text", {"query": "A"}, accepted_statuses=(200, 404, 409),
+        timeout=4,
     )
     assert result == (409, body)
     assert send.call_args.args == ("POST", SETTINGS["gateway_origin"] + "/v1/play-text")
     assert send.call_args.kwargs["allow_redirects"] is False
     assert send.call_args.kwargs["headers"] == {"Authorization": "Bearer " + SETTINGS["gateway_token"]}
-    assert send.call_args.kwargs["timeout"].total == 2
+    assert send.call_args.kwargs["timeout"].total == 4
     send.return_value = GatewayResponse(b'{"error":"a","error":"b"}', status=409)
     with pytest.raises(p.ChannelError):
         await runtime_module.Runtime.request_response(value, "/v1/play-text", {}, accepted_statuses=(409,))

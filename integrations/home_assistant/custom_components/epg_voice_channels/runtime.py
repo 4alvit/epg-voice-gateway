@@ -22,6 +22,9 @@ from .protocol import (
     select_channel,
 )
 
+TEXT_REQUEST_TIMEOUT = 4
+TEXT_OPERATION_TIMEOUT = 8
+
 
 def google_config(hass, settings):
     """Read the current runtime object; never retain one across a reload."""
@@ -78,7 +81,7 @@ class Runtime:
         _status, result = await self.request_response(path, data)
         return result
 
-    async def request_response(self, path, data=None, *, accepted_statuses=(200,)):
+    async def request_response(self, path, data=None, *, accepted_statuses=(200,), timeout=2):
         """No redirects, cookies, caller paths, or provider URLs are accepted."""
         if path not in ("/v1/channels", "/v1/play", "/v1/play-text"):
             raise ChannelError()
@@ -90,7 +93,7 @@ class Runtime:
             async with self.session.request(
                 "GET" if data is None else "POST", self.settings.gateway_origin + path,
                 headers={"Authorization": f"Bearer {self.settings.gateway_token}"},
-                json=data, allow_redirects=False, timeout=ClientTimeout(total=2),
+                json=data, allow_redirects=False, timeout=ClientTimeout(total=timeout),
             ) as response:
                 if response.status not in accepted_statuses:
                     raise ChannelError("noAvailableChannel" if response.status in (404, 409) else "deviceOffline")
@@ -116,11 +119,12 @@ class Runtime:
             return failure("busy")
         self.playing = True
         try:
-            async with asyncio.timeout(OPERATION_TIMEOUT):
+            async with asyncio.timeout(TEXT_OPERATION_TIMEOUT):
                 if not self.target_available():
                     return failure("unavailable")
                 status, response = await self.request_response(
                     "/v1/play-text", {"query": query}, accepted_statuses=(200, 404, 409),
+                    timeout=TEXT_REQUEST_TIMEOUT,
                 )
                 if status != 200:
                     return selection_response(status, response)
