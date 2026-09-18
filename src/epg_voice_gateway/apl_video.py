@@ -57,6 +57,19 @@ def capability_summary(payload: Any) -> dict[str, bool]:
     }
 
 
+def capability_reason(payload: Any) -> str:
+    """Explain APL eligibility using fixed labels without revealing input values."""
+    if APL_INTERFACE not in _interfaces(payload):
+        return "missing_apl"
+    if compatible_version(payload) is None:
+        return "unsupported_runtime"
+    context = _mapping(_mapping(payload).get("context"))
+    video = _mapping(_mapping(context.get("Viewport")).get("video"))
+    if not video:
+        return "missing_video"
+    return "eligible" if capability_summary(payload)["apl_video"] else "unsupported_codec"
+
+
 def _media_command(action: str) -> dict[str, str]:
     return {"type": "ControlMedia", "componentId": VIDEO_ID, "command": _ACTIONS[action]}
 

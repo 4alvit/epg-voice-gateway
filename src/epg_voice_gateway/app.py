@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .alexa import AlexaAdapter
-from .apl_video import capability_summary
+from .apl_video import capability_reason, capability_summary
 from .catalog import Catalog
 from .config import Settings
 from .errors import GatewayError, PlaybackUnavailable
@@ -363,9 +363,10 @@ def create_app(
                     capabilities = capability_summary(data)
                     state.capability_diagnostics_remaining -= 1
                     LOGGER.warning(
-                        "alexa_device_capabilities video_app=%s apl=%s apl_video=%s",
+                        "alexa_device_capabilities video_app=%s apl=%s apl_video=%s "
+                        "apl_video_reason=%s",
                         capabilities["video_app"], capabilities["apl"],
-                        capabilities["apl_video"],
+                        capabilities["apl_video"], capability_reason(data),
                     )
                 return await state.alexa.handle(data)
         except GatewayError:

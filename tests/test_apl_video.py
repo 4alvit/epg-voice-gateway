@@ -13,6 +13,7 @@ from epg_voice_gateway.apl_video import (
     APL_INTERFACE,
     EVENT_NAMESPACE,
     VIDEO_ID,
+    capability_reason,
     capability_summary,
     compatible_version,
 )
@@ -322,6 +323,43 @@ def test_diagnostics_do_not_include_any_identity_source_or_raw_capability_values
     assert set(summary) == {"video_app", "apl", "apl_video"}
     assert all(type(value) is bool for value in summary.values())
     assert payload == before
+
+
+@pytest.mark.parametrize("mutation,reason", [
+    (lambda p: None, "eligible"),
+    (lambda p: p["context"]["System"]["device"]["supportedInterfaces"].clear(), "missing_apl"),
+    (lambda p: p["context"]["System"]["device"]["supportedInterfaces"][APL_INTERFACE]
+     ["runtime"].update(maxVersion="1.7"), "unsupported_runtime"),
+    (lambda p: p["context"].pop("Viewport"), "missing_video"),
+    (lambda p: p["context"]["Viewport"].update(video={}), "missing_video"),
+    (lambda p: p["context"]["Viewport"].update(video=None), "missing_video"),
+    (lambda p: p["context"]["Viewport"]["video"].update(codecs=[]), "unsupported_codec"),
+    (lambda p: p["context"]["Viewport"]["video"].update(codecs=["H_265_42"]),
+     "unsupported_codec"),
+])
+def test_capability_reason_identifies_exact_gate_without_changing_eligibility(mutation, reason):
+    payload = request()
+    mutation(payload)
+    before = deepcopy(payload)
+    assert capability_reason(payload) == reason
+    assert capability_summary(payload)["apl_video"] is (reason == "eligible")
+    assert payload == before
+
+
+@pytest.mark.parametrize("payload,reason", [
+    (None, "missing_apl"),
+    ("private-device-and-token", "missing_apl"),
+    ({"context": {"Viewport": "private-video-value"}}, "missing_apl"),
+    (request(version="private-runtime-and-token"), "unsupported_runtime"),
+    (request(version={"private-runtime": "private-token"}), "unsupported_runtime"),
+    (request(codecs=["private-codec-and-url", {}, None]), "unsupported_codec"),
+    (request(codecs="private-codec-and-token"), "unsupported_codec"),
+])
+def test_capability_reason_never_echoes_malformed_or_private_values(payload, reason):
+    result = capability_reason(payload)
+    assert result == reason
+    assert result in {"eligible", "missing_apl", "unsupported_runtime", "missing_video",
+                      "unsupported_codec"}
 
 
 @pytest.mark.parametrize("action", ["pause", "resume", "stop", "ended"])

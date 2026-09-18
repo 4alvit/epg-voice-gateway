@@ -501,7 +501,10 @@ def test_capability_diagnostics_are_opt_in_and_exclude_request_values(api, caplo
     with api(alexa_capability_diagnostics=True) as run:
         assert run.client.post("/alexa", headers=AMAZON_HEADERS, json=payload).status_code == 200
     messages = [r.getMessage() for r in caplog.records if "alexa_device_capabilities" in r.message]
-    assert messages == ["alexa_device_capabilities video_app=True apl=False apl_video=False"]
+    assert messages == [
+        "alexa_device_capabilities video_app=True apl=False apl_video=False "
+        "apl_video_reason=missing_apl"
+    ]
     assert "private-" not in caplog.text
 
 

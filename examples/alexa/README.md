@@ -79,9 +79,12 @@ must not open the microphone while the video is playing.
 ## Diagnose a third-party screen
 
 Set `EPG_ALEXA_CAPABILITY_DIAGNOSTICS=true` for a controlled diagnostic startup.
-After successful Amazon authentication, the gateway logs only three booleans:
-`video_app`, `apl`, and `apl_video`. The last means eligible for the experimental
-fallback, not proven playback. The window stops after twenty verified requests
+After successful Amazon authentication, the gateway logs three booleans:
+`video_app`, `apl`, and `apl_video`, plus a fixed `apl_video_reason` category
+(`eligible`, `missing_apl`, `unsupported_runtime`, `missing_video`, or
+`unsupported_codec`). Eligibility is not proof of playback; the reason separates
+an unsupported runtime from absent video capabilities without exposing raw
+device metadata. The window stops after twenty verified requests
 or ten minutes from startup, whichever comes first. It records no device IDs,
 request bodies, queries, media URLs or tokens. Restore the setting to `false`
 after collecting the result. Correlate one controlled invocation with its log;
