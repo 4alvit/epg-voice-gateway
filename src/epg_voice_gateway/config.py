@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     xmltv_urls: list[str] = Field(min_length=1, max_length=8)
     database_path: str = ":memory:"
     alexa_skill_id: str = ""
+    alexa_capability_diagnostics: bool = False
     title_aliases: dict[str, list[str]] = Field(default_factory=dict, max_length=200)
     voice_catalogue_limit: int = Field(default=30, ge=1, le=50)
     voice_channel_ids: list[str] = Field(default_factory=list, max_length=200)

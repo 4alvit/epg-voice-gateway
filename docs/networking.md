@@ -137,6 +137,11 @@ MPEG-TS/AAC, MPEG4 or H.264 video, and a maximum resolution of 1280x720 for this
 interface. A 4K channel needs a compatible existing rendition or a separate
 transcoding service; this gateway does not resize video.
 
+The experimental APL Video fallback instead checks the APL runtime and viewport
+video codecs. It does not relax HTTPS requirements or transcode the stream.
+APL cards and advertised H.264 support alone do not establish live-HLS playback;
+test the actual target as described in the [Alexa guide](../examples/alexa/README.md).
+
 Google playback uses Home Assistant and Cast. Home TV advertises a finite list
 of current EPG titles through Google's Modes trait; one private handler validates
 and plays any offered choice. Fixed shortcuts remain available through exposed

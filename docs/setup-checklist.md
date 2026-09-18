@@ -71,8 +71,10 @@ operator-supplied dependencies.
     failures. See [acceptance](acceptance.md#google-acceptance).
 11. **Add Alexa only if needed.** Configure the separate custom skill, model,
     Video App interface and signature-protected `/alexa` endpoint. Verify the
-    actual target advertises VideoApp and can fetch public HTTPS media. A Google
-    result does not validate Alexa. See [Alexa setup](../examples/alexa/README.md).
+    actual target advertises VideoApp and can fetch public HTTPS media. For an
+    APL-only target, separately enable and test the experimental fallback with
+    the required runtime/video capabilities. A Google result does not validate
+    Alexa. See [Alexa setup](../examples/alexa/README.md).
 12. **Record and recover.** Keep private configuration, version/digest receipts,
     backups and detailed diagnostics outside Git. Commit only generic procedures
     and sanitized results. Preserve the database and existing HLS Proxy during

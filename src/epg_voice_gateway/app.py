@@ -7,6 +7,7 @@ import logging
 import re
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
+from time import monotonic
 from typing import Annotated
 
 import anyio
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .alexa import AlexaAdapter
+from .apl_video import capability_summary
 from .catalog import Catalog
 from .config import Settings
 from .errors import GatewayError, PlaybackUnavailable
@@ -148,6 +150,11 @@ def create_app(
             media_selection=getattr(guide, "media_selection", None),
         )
         app.state.verification_slots = asyncio.Semaphore(4)
+        # An explicit operator diagnostic window contains no request identities.
+        app.state.capability_diagnostics_until = monotonic() + 600
+        app.state.capability_diagnostics_remaining = (
+            20 if config.alexa_capability_diagnostics else 0
+        )
         task = asyncio.create_task(guide.run()) if start_refresh else None
         try:
             yield
@@ -349,6 +356,17 @@ def create_app(
                 # Keep its slot occupied until the thread exits, even on timeout.
                 await asyncio.shield(verification)
                 stage = "handler"
+                if (
+                    state.capability_diagnostics_remaining > 0
+                    and monotonic() < state.capability_diagnostics_until
+                ):
+                    capabilities = capability_summary(data)
+                    state.capability_diagnostics_remaining -= 1
+                    LOGGER.warning(
+                        "alexa_device_capabilities video_app=%s apl=%s apl_video=%s",
+                        capabilities["video_app"], capabilities["apl"],
+                        capabilities["apl_video"],
+                    )
                 return await state.alexa.handle(data)
         except GatewayError:
             raise

@@ -70,6 +70,13 @@ SD/720p channel first. Verify visible moving video and audible sound, followed
 by pause/resume/stop behavior. Do not infer Samsung Family Hub video support
 from previously rendered Alexa energy cards.
 
+For the experimental fallback, enable APL and capture a verified request with
+APL runtime 1.8 or newer and an advertised H.264 viewport codec. Confirm a
+`RenderDocument` response, visible moving video and audio, on-screen controls,
+and voice pause/resume/stop. Unsupported or absent video capabilities must
+produce a spoken explanation without creating a media session. APL live-HLS
+support on a third-party screen requires this separate physical test.
+
 Record the model, locale, capability result, channel codec/resolution, start
 latency, playback duration, and observed result privately. A simulator-generated
 `VideoApp.Launch` directive is response-contract proof only. Actual playback on

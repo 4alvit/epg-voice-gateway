@@ -165,10 +165,20 @@ Bot Fight Mode. The relay keeps media and authenticated catalogue APIs private;
 it does not replace the separate HTTPS media route.
 
 Example invocation: **"Alexa, ask home television to play Kukutiki."** The requested
-channel or current programme is searched dynamically in the shared catalogue. A device must advertise `VideoApp` support;
-rendering APL cards alone does not establish video playback capability. Alexa
-requires an Internet-accessible, trusted HTTPS media endpoint. LAN-only HTTPS
-and an API smoke test do not prove Alexa playback.
+channel or current programme is searched dynamically in the shared catalogue.
+The adapter prefers `VideoApp`. An experimental APL Video fallback is available
+when a device explicitly advertises APL 1.8 or newer and H.264 video capability.
+Rendering APL cards alone is insufficient, and these capabilities do not prove
+that a particular third-party display can play live HLS. Verify the actual
+screen and its playback controls. Alexa requires an Internet-accessible, trusted
+HTTPS media endpoint. LAN-only HTTPS and an API smoke test do not prove playback.
+
+For names that an English recognizer spells differently, configure exact
+channel aliases such as **REN TV**, **Wren TV**, and **Ren Television** against
+the intended catalogue channel. An optional distinct alias such as
+**Rainbow Television** can be easier to pronounce. Check for name collisions
+and pin the intended regional/quality variant before publishing it to Google.
+Aliases affect matching after recognition; test the actual spoken phrase too.
 
 ## Google installation and use
 

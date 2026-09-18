@@ -490,6 +490,43 @@ def test_alexa_verifies_exact_received_body_before_resolving_or_creating_session
         assert run.app.state.sessions.resolve(token, resource).content_kind == "manifest"
 
 
+def test_capability_diagnostics_are_opt_in_and_exclude_request_values(api, caplog):
+    payload = alexa_request(interfaces={
+        "VideoApp": {}, "private-interface-marker": {"secret": "private-value-marker"},
+    })
+    payload["request"] = {"type": "LaunchRequest", "requestId": "private-request-marker"}
+    with api() as run:
+        assert run.client.post("/alexa", headers=AMAZON_HEADERS, json=payload).status_code == 200
+    assert "alexa_device_capabilities" not in caplog.text
+    with api(alexa_capability_diagnostics=True) as run:
+        assert run.client.post("/alexa", headers=AMAZON_HEADERS, json=payload).status_code == 200
+    messages = [r.getMessage() for r in caplog.records if "alexa_device_capabilities" in r.message]
+    assert messages == ["alexa_device_capabilities video_app=True apl=False apl_video=False"]
+    assert "private-" not in caplog.text
+
+
+def test_rejected_signatures_never_produce_capability_diagnostics(api, caplog):
+    with api(alexa_capability_diagnostics=True, verifier=Mock(side_effect=ValueError)) as run:
+        response = run.client.post("/alexa", headers=AMAZON_HEADERS, json=alexa_request())
+        assert response.status_code == 400
+        assert run.app.state.capability_diagnostics_remaining == 20
+    assert "alexa_device_capabilities" not in caplog.text
+
+
+@pytest.mark.parametrize("expired", [False, True])
+def test_capability_diagnostics_stop_at_count_or_time_limit(api, caplog, expired):
+    payload = alexa_request()
+    payload["request"] = {"type": "LaunchRequest"}
+    with api(alexa_capability_diagnostics=True) as run:
+        run.app.state.capability_diagnostics_remaining = 1
+        if expired:
+            run.app.state.capability_diagnostics_until = 0
+        for _ in range(2):
+            assert run.client.post("/alexa", headers=AMAZON_HEADERS, json=payload).status_code == 200
+    messages = [r for r in caplog.records if "alexa_device_capabilities" in r.message]
+    assert len(messages) == (0 if expired else 1)
+
+
 def test_failed_body_verification_never_reaches_resolution_or_session_creation(api):
     original = json.dumps(alexa_request())
     tampered = original.replace("Kukutiki", "Tampered title")

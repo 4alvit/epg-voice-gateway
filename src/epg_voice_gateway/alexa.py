@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
+from .apl_video import APL_INTERFACE, APLVideo, capability_summary
 from .errors import CatalogUnavailable, GatewayError
 from .models import ProgramMatch
 
@@ -77,28 +78,49 @@ class AlexaAdapter:
             raise ValueError("Configure both media search and selection callbacks")
         self._media_resolver = media_resolver
         self._media_selection = media_selection
+        self._apl = APLVideo()
 
     async def handle(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         request = _mapping(payload.get("request"))
         request_type = request.get("type")
-        if request_type == "SessionEndedRequest":
+        if request_type in ("SessionEndedRequest", APL_INTERFACE + ".RuntimeError"):
             return {"version": "1.0", "response": {}}
         if request_type == "LaunchRequest":
             return _speech(HELP, end_session=False)
+        if request_type == APL_INTERFACE + ".UserEvent":
+            action = self._apl.event_action(payload)
+            if action is None:
+                return {"version": "1.0", "response": {}}
+            token = self._apl.current_token(payload)
+            if action == "ended":
+                response = _speech(HELP, end_session=False)
+                response["response"]["directives"] = [self._apl.control(token, "stop")]
+                return response
+            # Touch commands already ran locally. In particular, the Stop button
+            # may have finished the document before this acknowledgement arrives.
+            return {"version": "1.0", "response": (
+                {"shouldEndSession": True} if action == "stop" else {}
+            )}
         if request_type != "IntentRequest":
             return _speech(HELP, end_session=False)
 
         intent = _mapping(request.get("intent"))
         name = intent.get("name")
+        control = {
+            "AMAZON.PauseIntent": "pause", "AMAZON.ResumeIntent": "resume",
+            "AMAZON.StopIntent": "stop", "AMAZON.CancelIntent": "stop",
+        }.get(name) if isinstance(name, str) else None
+        if control and (token := self._apl.current_token(payload)):
+            return self._apl_control(token, control)
         if name in ("AMAZON.StopIntent", "AMAZON.CancelIntent"):
             return _speech("Goodbye.")
+        if name in ("AMAZON.PauseIntent", "AMAZON.ResumeIntent"):
+            return _speech("There is no active video from this skill to control.")
         if name != "PlayProgramIntent":
             return _speech(HELP, end_session=False)
 
-        system = _mapping(_mapping(payload.get("context")).get("System"))
-        device = _mapping(system.get("device"))
-        interfaces = _mapping(device.get("supportedInterfaces"))
-        if "VideoApp" not in interfaces:
+        capabilities = capability_summary(payload)
+        if not capabilities["video_app"] and not capabilities["apl_video"]:
             return _speech("This device does not support video playback from this skill.")
 
         slots = _mapping(intent.get("slots"))
@@ -153,6 +175,12 @@ class AlexaAdapter:
         except ValueError:
             return _speech("Please use a channel name or a short program title.", end_session=False)
 
+        if not capabilities["video_app"]:
+            # Omit shouldEndSession: opening the microphone would interrupt video.
+            return {"version": "1.0", "response": {"directives": [self._apl.render(
+                source, _metadata(match.title), _metadata(match.channel_name),
+            )]}}
+
         # VideoApp forbids shouldEndSession, including a null value.
         return {
             "version": "1.0",
@@ -171,3 +199,9 @@ class AlexaAdapter:
                 ]
             },
         }
+
+    def _apl_control(self, token: str, action: str) -> dict:
+        response = {"directives": [self._apl.control(token, action)]}
+        if action == "stop":
+            response["shouldEndSession"] = True
+        return {"version": "1.0", "response": response}

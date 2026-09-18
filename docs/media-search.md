@@ -82,7 +82,8 @@ search: Assist and Alexa can search an imported channel outside Google's list.
   sentences does not reroute a Google display's microphone to Home Assistant.
 - **Alexa:** the [custom skill](../examples/alexa/README.md) passes its
   `AMAZON.SearchQuery` slot into the same resolver. For example, `Alexa, ask home
-  television to play Example News`. The device must advertise `VideoApp`.
+  television to play Example News`. The device must advertise `VideoApp` or
+  qualify for the experimental APL Video fallback described in that guide.
 
 These are different input paths to one resolver, not equivalent microphone
 capabilities. A small language model could later parse richer utterances or rank

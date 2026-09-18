@@ -67,7 +67,7 @@ def test_launches_current_match_with_valid_videoapp_contract():
 
 
 @pytest.mark.parametrize("interfaces", [{}, {"Alexa.Presentation.APL": {}}, [], None])
-def test_requires_videoapp_even_when_apl_is_available(interfaces):
+def test_rejects_screen_without_explicit_video_capabilities(interfaces):
     skill, resolver, session_url = adapter()
     payload = request()
     payload["context"]["System"]["device"]["supportedInterfaces"] = interfaces
