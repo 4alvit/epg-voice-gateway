@@ -1,6 +1,12 @@
 # Load as a Home Assistant package; Google exposure is configured separately.
-# Keep the dispatcher private; expose only the fixed voice scripts below.
+# Keep dispatchers private; expose only the fixed scripts and the Home TV selector.
 rest_command:
+  epg_voice_catalogue:
+    url: !secret epg_voice_gateway_catalogue_url
+    method: GET
+    headers:
+      Authorization: !secret epg_voice_gateway_authorization
+    timeout: 15
   epg_voice_session:
     url: !secret epg_voice_gateway_play_url
     method: POST
@@ -12,8 +18,39 @@ rest_command:
       {% set channel = channel_id | default('', true) | string | trim %}
       {% set body = dict(query=q) if q else dict() %}
       {% if channel %}{% set body = dict(body, channel_id=channel) %}{% endif %}
+      {% if exact_title | default(false) is sameas true %}
+        {% set body = dict(body, exact_title=true) %}
+      {% endif %}
       {{ body | to_json }}
     timeout: 60
+
+input_select:
+  home_tv:
+    name: Home TV
+    icon: mdi:television-play
+    options:
+      - Ready
+      - Unavailable
+    initial: Ready
+
+input_boolean:
+  epg_voice_auto_sync:
+    name: EPG Voice Automatic Google Sync
+    initial: false
+
+input_text:
+  epg_voice_google_agent_user_id:
+    name: EPG Voice Google Agent User ID
+    initial: !secret epg_voice_google_agent_user_id
+    max: 64
+  epg_voice_catalogue_revision:
+    name: EPG Voice Catalogue Revision
+    initial: ""
+    max: 64
+  epg_voice_google_sync_status:
+    name: EPG Voice Google Sync Status
+    initial: Manual sync required after catalogue options change.
+    max: 255
 
 script:
   epg_voice_play_programme:
@@ -35,6 +72,10 @@ script:
         selector:
           text:
             multiline: false
+      exact_title:
+        name: Require exact current title
+        description: Used by the dynamic selector; requires both title and channel.
+        default: false
     sequence:
       - if: >-
           {{ not (query | default('', true) | string | trim)
@@ -46,6 +87,7 @@ script:
         data:
           query: "{{ query | default('', true) }}"
           channel_id: "{{ channel_id | default('', true) }}"
+          exact_title: "{{ exact_title | default(false) }}"
         response_variable: gateway_response
         continue_on_error: true
       - if: "{{ gateway_response is not defined or gateway_response is not mapping }}"
@@ -111,3 +153,169 @@ script:
       - action: script.epg_voice_play_programme
         data:
           channel_id: !secret epg_voice_news_channel_id
+
+  epg_voice_catalogue_controller:
+    alias: EPG Voice Catalogue Controller
+    description: Serialize catalogue refresh and explicit Home TV selections.
+    mode: queued
+    max: 10
+    max_exceeded: silent
+    trace:
+      stored_traces: 0
+    fields:
+      option:
+        name: Selected catalogue label
+        description: Omit to refresh only. Playback labels must already be offered.
+        selector:
+          text:
+            multiline: false
+    sequence:
+      - variables:
+          requested_option: "{{ option | default('', true) | string }}"
+          offered_options: "{{ state_attr('input_select.home_tv', 'options') or [] }}"
+      - variables:
+          selection_allowed: >-
+            {{ requested_option not in ['', 'Ready', 'Unavailable']
+               and requested_option in offered_options }}
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.home_tv
+        data:
+          option: Ready
+      - action: rest_command.epg_voice_catalogue
+        response_variable: catalogue_response
+        continue_on_error: true
+      - variables:
+          catalogue: >-
+            {{ catalogue_response.get('content')
+               if catalogue_response is defined and catalogue_response is mapping
+               and catalogue_response.get('status') == 200 else none }}
+      - variables:
+          catalogue_valid: >-
+            {% set ns = namespace(valid=catalogue is mapping, labels=[]) %}
+            {% if ns.valid %}
+              {% set ns.valid = catalogue.get('options') is sequence
+                 and catalogue.get('options') is not string
+                 and catalogue.get('options') is not mapping
+                 and catalogue['options'] | length <= 50
+                 and catalogue.get('revision') is string
+                 and catalogue['revision'] | regex_match('^[a-f0-9]{64}\\Z') %}
+            {% endif %}
+            {% if ns.valid %}
+              {% for item in catalogue['options'] %}
+                {% if item is not mapping
+                   or item.get('label') is not string
+                   or not (item['label'] | regex_match('^[^\x00-\x1f\x7f]{1,100}\\Z'))
+                   or item['label'] != item['label'] | trim
+                   or item['label'] | lower in ['ready', 'unavailable']
+                   or item['label'] | lower in ns.labels
+                   or item.get('query') is not string
+                   or not (item['query'] | trim)
+                   or item['query'] | length > 200
+                   or item.get('channel_id') is not string
+                   or not (item['channel_id'] | regex_match('^[a-f0-9]{24}\\Z')) %}
+                  {% set ns.valid = false %}
+                {% else %}
+                  {% set ns.labels = ns.labels + [item['label'] | lower] %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {{ ns.valid }}
+      - variables:
+          fresh_options: "{{ catalogue['options'] if catalogue_valid else [] }}"
+      - variables:
+          next_options: >-
+            {{ ['Ready'] + (fresh_options | map(attribute='label') | list)
+               if fresh_options else ['Ready', 'Unavailable'] }}
+          selected: "{{ fresh_options | selectattr('label', 'equalto', requested_option) | list }}"
+      - variables:
+          options_changed: "{{ next_options != (state_attr('input_select.home_tv', 'options') or []) }}"
+      - if: "{{ options_changed }}"
+        then:
+          - action: input_select.set_options
+            target:
+              entity_id: input_select.home_tv
+            data:
+              options: "{{ next_options }}"
+      # Reset after the fetch as well: the original select service may have been
+      # completing when its call_service event first triggered this controller.
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.home_tv
+        data:
+          option: Ready
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.epg_voice_catalogue_revision
+        data:
+          value: "{{ catalogue['revision'] if catalogue_valid else 'unavailable' }}"
+      - if: "{{ options_changed }}"
+        then:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.epg_voice_google_sync_status
+            data:
+              value: Options changed. Ask Google to sync devices; phone verification required.
+          - if: >-
+              {{ is_state('input_boolean.epg_voice_auto_sync', 'on')
+                 and states('input_text.epg_voice_google_agent_user_id')
+                   | regex_match('^[a-f0-9]{32}\\Z') }}
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: input_text.epg_voice_google_sync_status
+                data:
+                  value: Automatic sync requested. HomeGraph acceptance is unverified; verify on Google Home.
+              - action: google_assistant.request_sync
+                data:
+                  agent_user_id: "{{ states('input_text.epg_voice_google_agent_user_id') }}"
+                continue_on_error: true
+      - if: >-
+          {{ not selection_allowed or not catalogue_valid or selected | length != 1 }}
+        then:
+          - stop: Catalogue refreshed; no valid current selection to play.
+            error: false
+      - action: script.epg_voice_play_programme
+        data:
+          query: "{{ selected[0]['query'] }}"
+          channel_id: "{{ selected[0]['channel_id'] }}"
+          exact_title: true
+
+automation:
+  - id: epg_voice_catalogue_events
+    alias: EPG Voice Catalogue Refresh and Selection
+    mode: parallel
+    max: 10
+    max_exceeded: silent
+    trace:
+      stored_traces: 0
+    triggers:
+      - trigger: homeassistant
+        event: start
+        id: refresh
+      - trigger: time_pattern
+        minutes: "/5"
+        id: refresh
+      - trigger: event
+        event_type: call_service
+        event_data:
+          domain: input_select
+          service: select_option
+        id: select
+    conditions:
+      - condition: template
+        value_template: >-
+          {% if trigger.id == 'select' %}
+            {% set data = trigger.event.data.get('service_data', {}) %}
+            {{ data is mapping
+               and data.get('entity_id') in ['input_select.home_tv', ['input_select.home_tv']]
+               and data.get('option') is string
+               and data['option'] not in ['Ready', 'Unavailable']
+               and data['option'] in (state_attr('input_select.home_tv', 'options') or []) }}
+          {% else %}
+            {{ trigger.id == 'refresh' }}
+          {% endif %}
+    actions:
+      - action: script.epg_voice_catalogue_controller
+        data:
+          option: "{{ trigger.event.data['service_data']['option'] if trigger.id == 'select' else '' }}"

@@ -4,6 +4,11 @@ google_assistant:
   entity_config:
     script.epg_voice_play_programme:
       expose: false
+    script.epg_voice_catalogue_controller:
+      expose: false
+    input_select.home_tv:
+      name: Home TV
+      expose: true
     script.play_kukutiki:
       name: Play Kukutiki
       expose: true

@@ -146,16 +146,25 @@ entity and gateway credential in HA, then test the supplied scripts locally.
 The private dispatcher obtains a fresh playback session and HA starts Cast
 playback. This route does not require an HA token in the gateway.
 
-Connect HA through its Google Assistant integration and expose only the fixed
-**Play Kukutiki** and **Play News Channel** wrappers. Cast support alone does not
-create this voice connection. The manual Google integration can be configured
-without a Home Assistant Cloud subscription. Start with **"Hey Google, activate
-Play News Channel"**, then add a Google Home Routine for a shorter phrase.
+Connect HA through its Google Assistant integration and expose **Home TV** plus
+the fixed **Play Kukutiki** and **Play News Channel** wrappers. Home TV refreshes
+its finite programme list from the current EPG every five minutes. One handler
+plays any offered title; no per-programme script is required. Configure a tested
+channel allowlist and preferred title aliases on the gateway. Selection fetches
+a fresh catalogue and rechecks the exact title and channel before playback.
 
-This provides a configured phrase such as **"Hey Google, play Kukutiki."** It
-does not register a universal Google command with an arbitrary title slot.
-The retired Conversational Actions platform is not used. A Nest Hub or a
-compatible Cast screen is required to show video.
+When Columbo is listed, a candidate command is **"Hey Google, set Home TV option
+to Columbo."** Verify the wording and recognition on your device. Google uses
+the Modes trait and only knows the published choices; this is not an arbitrary
+spoken-text slot. Configure HomeGraph automatic Request Sync or ask Google to
+sync devices after option changes. The detailed setup and its acceptance limits
+are in the linked example instructions.
+
+The manual integration needs no Home Assistant Cloud subscription. The fixed
+scene command **"Hey Google, activate Play News Channel"** remains available;
+a Google Home Routine can give it a shorter phrase. Cast support alone does not
+establish voice control. The retired Conversational Actions platform is not
+used. A Nest Hub or compatible Cast screen is required to show video.
 
 ## Deployment and verification
 

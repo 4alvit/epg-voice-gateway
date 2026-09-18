@@ -1,6 +1,6 @@
 # Google voice through Home Assistant
 
-The supported route is:
+The fixed-shortcut route is:
 
 **Google voice shortcut -> exposed fixed HA script -> private HA dispatcher ->
 gateway `/v1/play` -> HA Cast -> configured display**
@@ -40,8 +40,9 @@ depend on the changing title of the news broadcast.
 6. Run `script.play_kukutiki` or `script.play_news_channel` manually. Check the
    physical display. A successful script call alone does not establish that
    the device has decoded the video.
-7. Keep `script.epg_voice_play_programme` unexposed to Google and Assist. Expose
-   only the fixed wrappers. For an existing manual Google integration, merge
+7. Keep `script.epg_voice_play_programme` and `script.epg_voice_catalogue_controller`
+   unexposed to Google and Assist. Expose the fixed wrappers and, if wanted, the
+   **Home TV** selector described below. For an existing manual Google integration, merge
    [`google-assistant.example.yaml`](google-assistant.example.yaml) alongside
    its project configuration. For a new integration, follow
    [First-time manual Google linking](#first-time-manual-google-linking) below.
@@ -64,6 +65,91 @@ from another authorized HA automation, but the Google wrappers deliberately
 have fixed inputs and a fixed playback device. Add a wrapper and a Routine for
 each additional favourite programme. This setup does not use retired Google
 Conversational Actions or require Gemini.
+
+## Dynamic current-programme selector
+
+The package also provides **Home TV**, an `input_select` whose options come from
+the authenticated gateway `GET /v1/catalogue` endpoint. This offers currently
+airing programmes without adding a script for each title. The fixed shortcuts
+remain available.
+
+1. Configure the gateway's `EPG_VOICE_CHANNEL_IDS` with an ordered JSON list of
+   verified channel IDs. Its default empty list exposes no programmes. Choose
+   channels whose codecs and resolution work on the intended display.
+2. Optionally set `EPG_VOICE_PREFERRED_QUERIES`, for example
+   `["Kukutiki", "Columbo"]`, and the required `EPG_TITLE_ALIASES`. These labels
+   appear only while a matching programme is currently airing on an allowed
+   channel. Other current titles fill the remaining places. The default
+   catalogue limit is 30, configurable through `EPG_VOICE_CATALOGUE_LIMIT`.
+3. Set `epg_voice_gateway_catalogue_url` in HA secrets to the reachable gateway
+   `/v1/catalogue` URL. Keep `epg_voice_google_agent_user_id` empty unless enabling
+   the optional automatic Google sync described below. Validate and restart HA
+   when adding these helpers and automations for the first time.
+4. Expose `input_select.home_tv` using the supplied Google exposure fragment.
+   Include **Sensor** among the device types in the Google integration draft:
+   stock HA maps `input_select` to a sensor with the Google **Modes** trait.
+   It advertises an enumerated option list, rather than a television's search
+   interface. Keep both dispatchers private.
+5. Wait for the startup refresh, or run `script.epg_voice_catalogue_controller`
+   with no fields to refresh manually. Inspect the **Home TV** options, sync
+   Google devices, then select a current label from the HA UI first. Confirm
+   picture and audio on the physical display.
+6. Try **"Hey Google, set Home TV to Kukutiki"**, or the explicit form
+   **"Hey Google, set Home TV option to Kukutiki"**. Substitute an option
+   currently advertised to Google. These are phrase candidates; validate
+   recognition on the household account and device. Google does not send
+   arbitrary spoken programme names through this selector.
+
+The automation refreshes every five minutes. **Ready** is the neutral state;
+**Unavailable** is an additional nonplaying option when the catalogue is empty
+or cannot be fetched or validated. Having at least two options keeps the
+selector suitable for Google's Modes trait. A failed poll removes old choices
+and does not start playback.
+
+Only an explicit `input_select.select_option` service event addressed solely to
+`input_select.home_tv`, with a listed nonneutral option, requests playback.
+State changes and `set_options` updates do not. Each delivered selection fetches
+a fresh server mapping, then sends its full title and pinned channel with
+`exact_title: true`. If that exact programme has ended, playback fails rather
+than matching a different title containing the same words. The selector resets
+to **Ready** before dispatch, including when the request later fails. Repeated
+selection calls can therefore request new sessions even if the same title was
+previously selected; whether Google delivers a particular repeated voice
+command remains a device acceptance check.
+
+Refreshes and selections share one queued controller with a maximum of ten
+runs, so option replacement cannot overlap its playback decision. Each queued
+selection is checked again against the latest offered options and a fresh
+catalogue. The helper stores only labels and a revision hash; programme mapping
+is transient, and signed media URLs are never written to these helpers. Saved
+traces are disabled for the controller and its calling automation.
+
+### Synchronize changed options with Google
+
+Google caches the advertised Modes settings. A changed HA list alone does not
+establish that Google knows the new labels. Without HomeGraph configuration,
+leave `input_boolean.epg_voice_auto_sync` disabled and ask Google to sync devices
+after changes. `input_text.epg_voice_google_sync_status` explicitly indicates
+when manual synchronization and phone verification are needed.
+
+For automatic requests, configure HomeGraph and the private service-account
+file according to the official HA setup instructions below. Set
+`epg_voice_google_agent_user_id` to the HA user ID actually used to link Google,
+not its username or an administrator's unrelated ID. Only after checking that
+configuration, change the private package's `epg_voice_auto_sync.initial` to
+`true`; a UI toggle alone is reset by the example's explicit `initial: false`
+on restart. No service-account key belongs in this repository.
+
+The controller requests `google_assistant.request_sync` only when visible
+choice labels change, and supplies that explicit `agent_user_id`. Requests are
+serialized with the controller. HA's service does not return HomeGraph's result
+to the automation, so the status says **requested / acceptance unverified**;
+it never claims a successful Google update. Check private HA logs and the Google
+Home app. An account that has not linked the integration cannot be synchronized
+successfully merely by creating its HA user or enabling the API.
+
+[HA Modes implementation](https://github.com/home-assistant/core/blob/2026.9.1/homeassistant/components/google_assistant/trait.py),
+[HA Google device-type mapping](https://github.com/home-assistant/core/blob/2026.9.1/homeassistant/components/google_assistant/const.py).
 
 ## First-time manual Google linking
 
@@ -119,6 +205,11 @@ google_assistant:
   entity_config:
     script.epg_voice_play_programme:
       expose: false
+    script.epg_voice_catalogue_controller:
+      expose: false
+    input_select.home_tv:
+      name: Home TV
+      expose: true
     script.play_kukutiki:
       name: Play Kukutiki
       expose: true
@@ -202,6 +293,8 @@ the gateway, which returns a session with status `ready`. HA then starts Cast
 playback locally with HLS content type, `LIVE` stream type, programme title and
 channel metadata. The player entity is fixed in `secrets.yaml`; a voice caller
 cannot choose another entity or service.
+The optional `exact_title` field defaults to false; the dynamic selector sets
+it to true together with the full current title and channel ID.
 
 - Missing inputs stop before a network request.
 - HTTP 404 means no current programme was found.
