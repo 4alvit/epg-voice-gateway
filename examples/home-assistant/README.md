@@ -66,6 +66,13 @@ can call the same gateway without changing the EPG or playback service.
   a Home Assistant Cloud subscription. Use the integration already configured
   for your home; this example does not purchase or enable a subscription.
 
+Home Assistant may fetch the HLS manifest and start the Cast receiver before
+answering the gateway. The gateway allows 40 seconds for that response, with
+five-second connection, pool, and write timeouts. The example `rest_command`
+waits 60 seconds so the outer request can outlast the gateway's playback call.
+Keep this timeout ordering when adapting the script: ending the gateway's wait
+too early can revoke a session while the display is still starting playback.
+
 ## References
 
 - [Home Assistant Google Assistant integration and exposed scripts](https://www.home-assistant.io/integrations/google_assistant/)

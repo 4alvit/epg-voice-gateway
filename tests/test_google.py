@@ -43,6 +43,19 @@ def test_calls_only_approved_entity_and_fixed_playback_service():
     assert len(requests) == 1
 
 
+def test_cold_receiver_start_has_a_longer_response_budget_than_connection_setup():
+    def handler(request):
+        timeouts = request.extensions["timeout"]
+        # Allow HA's five-second playlist probe and thirty-second Cast launch.
+        assert timeouts["read"] == 40.0
+        assert timeouts["connect"] == 5.0
+        assert timeouts["write"] == 5.0
+        assert timeouts["pool"] == 5.0
+        return httpx.Response(200, json=[])
+
+    run_cast(handler)
+
+
 @pytest.mark.parametrize("target", ["unknown", "media_player.arbitrary", "../services/script/turn_on"])
 def test_unknown_target_is_rejected_before_network_request(target):
     def handler(request):
@@ -91,12 +104,13 @@ def test_errors_and_redirects_are_not_followed_or_exposed(status):
     assert "unapproved" not in str(error.value)
 
 
-def test_network_error_is_not_retried_and_omits_request_details():
+@pytest.mark.parametrize("failure", [httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout])
+def test_network_error_is_not_retried_and_omits_request_details(failure):
     requests = []
 
     def handler(request):
         requests.append(request)
-        raise httpx.ConnectError("private request details", request=request)
+        raise failure("private request details", request=request)
 
     with pytest.raises(PlaybackUnavailable) as error:
         run_cast(handler)

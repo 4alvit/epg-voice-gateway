@@ -78,7 +78,8 @@ class HomeAssistantCaster:
                     "media_content_id": media_url,
                     "media_content_type": "application/vnd.apple.mpegurl",
                 },
-                timeout=8.0,
+                # HA may probe HLS and start the receiver before responding.
+                timeout=httpx.Timeout(40.0, connect=5.0, write=5.0, pool=5.0),
                 follow_redirects=False,
             )
         except httpx.HTTPError:
