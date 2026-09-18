@@ -25,9 +25,21 @@ implemented. SQLite persistence does not remove the guide freshness checks.
 The pod does not need a Kubernetes API token and runs as UID/GID 10001 with
 `fsGroup: 10001`, a read-only root filesystem, and a writable `/data` mount.
 
-`/healthz` is the process liveness check. `/readyz` reports whether the gateway is
-ready to resolve programming data. A healthy process is not proof of fresh EPG,
-stream reachability, or device compatibility.
+`/healthz` is the process check used by the startup, liveness and Kubernetes
+readiness probes. The application serves it after initialization. Keeping the
+pod in the Service when a feed becomes stale allows existing signed media
+sessions to continue and control requests to receive a useful HTTP error.
+`/readyz` separately reports whether the catalogue is fresh enough to resolve
+programming data. Stale or unavailable data still causes new resolution,
+catalogue and playback requests to fail closed with HTTP 503; no new playback
+grant is issued. A Ready pod is not proof of fresh EPG, stream reachability or
+device compatibility. Check `/readyz` and an authenticated current lookup as
+separate deployment acceptance gates.
+
+Changing a probe in the Deployment updates its pod template and triggers a
+rollout. Apply this change during an idle window: replacing the process
+invalidates its in-memory media sessions even though catalogue expiry alone
+does not. Do not restart an active stream just to test stale-data behavior.
 
 The supplied CPU and memory settings are starting budgets, not a capacity
 guarantee. EPG size and concurrent streams affect consumption. Observe the

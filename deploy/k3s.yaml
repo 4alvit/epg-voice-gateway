@@ -85,7 +85,7 @@ spec:
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /readyz
+              path: /healthz
               port: http
             periodSeconds: 10
             timeoutSeconds: 3

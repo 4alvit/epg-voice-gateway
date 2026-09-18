@@ -5,15 +5,18 @@ import json
 import re
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import urlsplit
 
 import httpx
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 from epg_voice_gateway.app import create_app
+from epg_voice_gateway.catalog import Catalog
 from epg_voice_gateway.config import Settings
 from epg_voice_gateway.errors import CatalogUnavailable
 from epg_voice_gateway.models import ProgramMatch
@@ -281,6 +284,92 @@ def test_saved_channel_stale_catalog_error_does_not_create_session(api):
         assert response.json() == {"error": "catalog_unavailable"}
         run.catalog.stream_url.assert_not_called()
         create.assert_not_called()
+
+
+def test_expired_catalogue_keeps_service_and_existing_media_available():
+    now = datetime.now(UTC)
+    start, end = now - timedelta(hours=1), now + timedelta(hours=1)
+    clock = [1.0]
+    feed_available = [True]
+    playlist = (
+        '#EXTM3U\n#EXTINF:-1 tvg-id="news",News Channel\n'
+        f'{PROXY}/channel/news/index.m3u8\n'
+    )
+    xmltv = (
+        '<tv><channel id="news"><display-name>News Channel</display-name></channel>'
+        f'<programme channel="news" start="{start:%Y%m%d%H%M%S %z}" '
+        f'stop="{end:%Y%m%d%H%M%S %z}"><title>Daily News</title></programme></tv>'
+    )
+
+    def handler(request):
+        if request.url.path == "/playlist.m3u8":
+            return httpx.Response(200, text=playlist)
+        if request.url.path == "/guide.xml":
+            return httpx.Response(200, text=xmltv) if feed_available[0] else httpx.Response(503)
+        if request.url.path == "/channel/news/index.m3u8":
+            return httpx.Response(200, text=(
+                '#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10,\n/ts/news.ts\n'
+            ))
+        if request.url.path == "/ts/news.ts":
+            return httpx.Response(200, stream=MediaBytes(b"synthetic-video"), headers={
+                "Content-Type": "video/mp2t",
+            })
+        pytest.fail("Unexpected upstream resource")
+
+    config = Settings(
+        api_token=API_TOKEN,
+        signing_key="synthetic-media-signing-key-for-api-tests-only",
+        hls_proxy_url=PROXY,
+        media_base_url="https://media.example.test",
+        xmltv_urls=["https://guide.example.test/guide.xml"],
+    )
+    upstream = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    catalog = Catalog(config, upstream, clock=lambda: clock[0])
+    manifest = Path(__file__).parents[1] / "deploy" / "k3s.yaml"
+    deployment = next(item for item in yaml.safe_load_all(manifest.read_text())
+                      if item and item.get("kind") == "Deployment")
+    probe_path = deployment["spec"]["template"]["spec"]["containers"][0]["readinessProbe"]["httpGet"]["path"]
+    try:
+        asyncio.run(catalog.refresh())
+        app = create_app(config, client=upstream, catalog=catalog, start_refresh=False)
+        with TestClient(app) as client:
+            assert client.get("/readyz").status_code == 200
+            playback = client.post("/v1/play", headers=AUTH, json={"query": "Daily News"})
+            assert playback.status_code == 200
+            media_path = urlsplit(playback.json()["media_url"]).path
+            channel_id = playback.json()["programme"]["channel_id"]
+
+            feed_available[0] = False
+            with pytest.raises(CatalogUnavailable):
+                asyncio.run(catalog.refresh())
+            clock[0] += config.max_stale_seconds + 1
+
+            assert client.get("/readyz").status_code == 503
+            assert client.get(probe_path).status_code == 200
+            with patch.object(app.state.sessions, "create", wraps=app.state.sessions.create) as create:
+                for path, payload in (
+                    ("/v1/resolve", {"query": "Daily News"}),
+                    ("/v1/play", {"query": "Daily News"}),
+                    ("/v1/play", {"channel_id": channel_id}),
+                    ("/v1/play", {"query": "Daily News", "channel_id": channel_id, "exact_title": True}),
+                ):
+                    response = client.post(path, headers=AUTH, json=payload)
+                    assert response.status_code == 503
+                    assert response.json() == {"error": "catalog_unavailable"}
+                response = client.get("/v1/catalogue", headers=AUTH)
+                assert response.status_code == 503
+                assert response.json() == {"error": "catalog_unavailable"}
+                create.assert_not_called()
+
+            media = client.get(media_path)
+            assert media.status_code == 200
+            segment_path = urlsplit(media.text.splitlines()[-1]).path
+            segment = client.get(segment_path)
+            assert segment.status_code == 200
+            assert segment.content == b"synthetic-video"
+    finally:
+        catalog.close()
+        asyncio.run(upstream.aclose())
 
 
 @pytest.mark.parametrize("target,status", [

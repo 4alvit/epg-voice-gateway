@@ -8,6 +8,9 @@ skill/user IDs, domains, IP addresses, and tokens from shared evidence.
 ## Application checks
 
 1. Verify `/healthz` and `/readyz` through a local port forward after deployment.
+   Kubernetes readiness uses `/healthz` to keep the Service reachable during an
+   EPG outage. `/readyz` is the separate fresh-catalogue gate; both must pass
+   before accepting new programme playback.
 2. Resolve a currently airing program using an authenticated control request.
    Confirm the title, channel, and active interval against the configured EPG.
 3. Confirm unknown titles and programs that ended already do not start an
@@ -20,6 +23,13 @@ skill/user IDs, domains, IP addresses, and tokens from shared evidence.
 Never use provider credentials or raw stream URLs as test fixture data. Use
 synthetic channels in public tests. Perform live checks only against the
 operator-configured service and preserve only bounded, sanitized outcomes.
+
+An expired catalogue must reject new resolve, catalogue and playback requests
+with HTTP 503 and must not issue new grants. An already-issued, unexpired signed
+media session should remain reachable while its upstream is available. Exercise
+this boundary with synthetic sources; do not disrupt a real feed or an active
+stream to force expiry. Changing the Deployment readiness probe itself triggers
+a rollout, which invalidates in-memory sessions; apply it during an idle window.
 
 ## Media transport checks
 
@@ -111,7 +121,10 @@ treating an observer-induced app transition as a production failure.
 
 - **Not ready:** inspect catalog/EPG refresh success, configured IDs, clock, feed
   reachability, and staleness thresholds. Do not disable freshness checks to
-  hide a feed problem.
+  hide a feed problem. If HA receives a connection failure instead of the
+  gateway's HTTP 503, also inspect Service endpoints and the installed readiness
+  probe. A freshness-based probe can remove an otherwise running pod and cut
+  off existing signed media sessions.
 - **Alexa HTTP 403:** separate edge rejection from application signature or
   skill-ID validation. A successful browser GET does not prove signed Amazon
   POST requests can reach the handler.
