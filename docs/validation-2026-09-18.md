@@ -517,6 +517,48 @@ existing aliases remained present; the dispatchers stayed hidden. The temporary
 dedicated verification login was revoked and rejection verified. These checks
 establish scene publication, not microphone recognition or physical playback.
 
+A controlled public `ActivateScene` request for Rainbow Channel returned HTTP
+200 and command status `SUCCESS`. The fixed script and private dispatcher both
+ran, and a fresh media grant reached the receiver. The receiver remained
+off/idle with no position advancement throughout the 90-second observation;
+HA reported a cast failure about eleven seconds after activation. The single
+passive native snapshot showed no active media session and no decoder error
+reason. This is failed REN playback, despite accepted scene execution.
+
+Correlated proxy logs contained missing-client-session errors, but they referred
+to an older upstream session already active before the trial. The new session
+fetched a playlist and a segment without that logged error. The proxy limits
+each client to one simultaneous stream, while the gateway's requests share one
+upstream identity. Session displacement is therefore a relevant concurrency
+limitation; these logs do not prove it caused the new receiver's failure. No
+proxy limit or configuration was changed, and no codec rejection was claimed.
+
+One subsequent News Channel activation served as a positive control. It also
+returned public HTTP 200/`SUCCESS`, and the receiver reported playing from the
+ten-second sample through the end of the 90-second window, using the same HTTPS
+media origin as the earlier working SD trial. The raw HA position stayed at its
+initial value between samples, so this observation does not establish timeline
+progress or human picture/audio acceptance. News was initially left running;
+a later guarded check found the receiver already idle with the same grant, so
+no stop command was sent. Continued playback beyond the observation window is
+not established. Both trials'
+temporary verification logins were revoked. A real microphone invocation of
+the new scene and physical REN playback remain unverified.
+
+After a fresh idle check, one isolated REN probe fetched a master playlist and
+media playlist with HTTP 200, followed by a bounded one-megabyte transport
+sample with HTTP 206. Full local inspection found H.264 Main level 4.0,
+1920x1080, progressive 25 fps, eight-bit yuv420p, and AAC LC 48 kHz stereo.
+Transport IDs and timebases matched the working SD sample; eight local video
+frames decoded successfully. The bounded sample's end truncation is not evidence
+of source corruption. The master advertised one 200 Mbps variant without
+CODECS or RESOLUTION attributes; the HLS version 3 media playlist contained
+three ten-second segments and no discontinuity tags. No declared-codec or
+resolution mismatch was established. These findings rule out the suspected
+interlaced, 50 fps and ten-bit differences in that sample; they do not identify
+the Lenovo failure cause or establish physical playback. No further playback
+command or proxy change followed the probe.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed

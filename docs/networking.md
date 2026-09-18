@@ -128,6 +128,22 @@ override. Split DNS and NAT loopback behavior also need device testing.
 The examples do not modify router rules, IPv6 firewall rules, DNS records,
 certificates, Cloudflare plans, or existing tunnels automatically.
 
+### Upstream client limits
+
+The gateway's separate playback grants share its upstream HTTP client and
+source address. An IP-based limit in the existing HLS proxy can therefore group
+different household receivers into one proxy client. Check the proxy's own
+simultaneous-stream limit before promising concurrent playback; gateway session
+capacity alone does not establish upstream capacity.
+
+In a recorded HLS Proxy 8.4.8 deployment, the effective
+`maxSimultaneousStreamCountPerClientDefault` was one. Starting a new stream
+coincided with missing-session errors for an older active session. Correlate
+the exact upstream session before blaming the new receiver: errors for the old
+session do not prove why the new one failed. Diagnose with serialized tests and
+a previously working stream as a control. Review any limit adjustment in the
+existing proxy deployment separately; this gateway does not change it.
+
 ## Platform constraints
 
 Alexa must advertise the `VideoApp` interface in the incoming request before
