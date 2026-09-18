@@ -84,6 +84,10 @@ words and honours XMLTV timezone offsets and playlist `tvg-shift` values.
 - `POST /v1/play`: `{ "query": "Kukutiki", "target": "kitchen" }`.
   Creates a session and asks Home Assistant to cast it to a configured target.
   Omit `target` to obtain a playback URL without starting a device.
+  Supply `{ "channel_id": "<verified catalogue channel ID>" }` to play the
+  current programme on a saved channel. This still requires a fresh guide and
+  exactly one current programme. With both `query` and `channel_id`, the channel
+  filters the title search; it does not bypass a missing title match.
 - `POST /alexa`: verifies the Amazon certificate, request signature, timestamp,
   and exact configured skill ID before processing the voice request.
 - `GET /media/{session}/{resource}`: validates both session and resource before
@@ -110,9 +114,16 @@ and an API smoke test do not prove Alexa playback.
 ## Google installation and use
 
 Use the Home Assistant package and instructions under
-[`examples/home-assistant`](examples/home-assistant). Configure a fixed target
-alias, expose the script to Google, and attach a Routine with the desired phrase.
-The script submits the programme query and Home Assistant starts Cast playback.
+[`examples/home-assistant`](examples/home-assistant). Configure a fixed player
+entity and gateway credential in HA, then test the supplied scripts locally.
+The private dispatcher obtains a fresh playback session and HA starts Cast
+playback. This route does not require an HA token in the gateway.
+
+Connect HA through its Google Assistant integration and expose only the fixed
+**Play Kukutiki** and **Play News Channel** wrappers. Cast support alone does not
+create this voice connection. The manual Google integration can be configured
+without a Home Assistant Cloud subscription. Start with **"Hey Google, activate
+Play News Channel"**, then add a Google Home Routine for a shorter phrase.
 
 This provides a configured phrase such as **"Hey Google, play Kukutiki."** It
 does not register a universal Google command with an arbitrary title slot.
@@ -126,8 +137,8 @@ compatible Cast screen is required to show video.
 - [Acceptance checks and physical-device limits](docs/acceptance.md)
 
 ```sh
-uv run pytest
-uv run ruff check .
+uv run --extra test pytest
+uv run --extra test ruff check .
 ```
 
 `uv.lock` pins development dependencies. The container installs runtime packages

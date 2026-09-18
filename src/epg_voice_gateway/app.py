@@ -13,7 +13,7 @@ import anyio
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .alexa import AlexaAdapter
 from .catalog import Catalog
@@ -34,8 +34,17 @@ class Query(BaseModel):
 
 
 class PlayQuery(Query):
+    query: str | None = Field(default=None, max_length=200)
     target: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{0,63}$")
     channel_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{24}$")
+
+    @model_validator(mode="after")
+    def require_query_or_channel(self):
+        if self.query is not None and not self.query.strip():
+            self.query = None
+        if self.query is None and self.channel_id is None:
+            raise ValueError("A programme query or channel ID is required")
+        return self
 
 
 def _unique_object(pairs):
@@ -195,9 +204,12 @@ def create_app(
         except ValidationError:
             raise HTTPException(400, "Invalid playback request") from None
         state = request.app.state
-        matches = await state.catalog.resolve(query.query)
-        if query.channel_id:
-            matches = [match for match in matches if match.channel_id == query.channel_id]
+        if query.query is None:
+            matches = await state.catalog.current_on_channel(query.channel_id)
+        else:
+            matches = await state.catalog.resolve(query.query)
+            if query.channel_id:
+                matches = [match for match in matches if match.channel_id == query.channel_id]
         if not matches:
             return JSONResponse({"error": "no_current_programme"}, status_code=404)
         if len(matches) != 1:

@@ -1,29 +1,116 @@
-# Load this file through Home Assistant packages after filling in secrets.
-# Configure the "kitchen" target alias in the gateway before using the script.
+# Load as a Home Assistant package; Google exposure is configured separately.
+# Keep the dispatcher private; expose only the fixed voice scripts below.
+logger:
+  logs:
+    # Debug logging can include the Authorization header.
+    homeassistant.components.rest_command: warning
+
 rest_command:
-  epg_voice_play:
+  epg_voice_session:
     url: !secret epg_voice_gateway_play_url
     method: POST
     headers:
       Authorization: !secret epg_voice_gateway_authorization
     content_type: application/json
-    payload: '{{ {"query": query, "target": target} | to_json }}'
+    payload: >-
+      {% set q = query | default('', true) | string | trim %}
+      {% set channel = channel_id | default('', true) | string | trim %}
+      {% set body = dict(query=q) if q else dict() %}
+      {% if channel %}{% set body = dict(body, channel_id=channel) %}{% endif %}
+      {{ body | to_json }}
     timeout: 60
 
 script:
+  epg_voice_play_programme:
+    alias: EPG Voice Playback Dispatcher
+    description: Request a fresh stream and cast to the configured display.
+    mode: single
+    trace:
+      stored_traces: 0
+    fields:
+      query:
+        name: Programme title
+        description: Title to find in the current guide; optional when a channel is supplied.
+        selector:
+          text: {}
+      channel_id:
+        name: Channel ID
+        description: Optional verified catalogue channel, or a channel filter for the title.
+        selector:
+          text: {}
+    sequence:
+      - if: >-
+          {{ not (query | default('', true) | string | trim)
+             and not (channel_id | default('', true) | string | trim) }}
+        then:
+          - stop: Supply a programme title or a verified channel ID.
+            error: true
+      - action: rest_command.epg_voice_session
+        data:
+          query: "{{ query | default('', true) }}"
+          channel_id: "{{ channel_id | default('', true) }}"
+        response_variable: gateway_response
+        continue_on_error: true
+      - if: "{{ gateway_response is not defined or gateway_response is not mapping }}"
+        then:
+          - stop: The programme gateway did not respond.
+            error: true
+      - choose:
+          - conditions: "{{ gateway_response.get('status') == 404 }}"
+            sequence:
+              - stop: No current programme is available for this request.
+                error: true
+          - conditions: "{{ gateway_response.get('status') == 409 }}"
+            sequence:
+              - stop: Several programmes match. Configure a channel ID or a more specific title.
+                error: true
+      - if: "{{ gateway_response.get('status') != 200 }}"
+        then:
+          - stop: The programme gateway rejected the playback request.
+            error: true
+      - variables:
+          session: "{{ gateway_response.get('content') }}"
+      - if: >-
+          {{ session is not mapping
+             or session.get('status') != 'ready'
+             or session.get('programme') is not mapping
+             or session.get('media_url') is not string
+             or not (session.get('media_url')
+                     | regex_match('^https://[^/@\\s?#]+/media/[^\\s?#]+\\.m3u8\\Z')) }}
+        then:
+          - stop: The programme gateway returned an invalid playback session.
+            error: true
+      - action: media_player.play_media
+        target:
+          entity_id: !secret epg_voice_player_entity
+        data:
+          media_content_id: "{{ session['media_url'] }}"
+          media_content_type: application/vnd.apple.mpegurl
+          extra:
+            stream_type: LIVE
+            metadata:
+              metadataType: 0
+              title: "{{ session['programme'].get('title', 'Live TV') }}"
+              subtitle: "{{ session['programme'].get('channel_name', '') }}"
+
   play_kukutiki:
     alias: Play Kukutiki
-    description: Find a currently airing program and play it on the kitchen display.
+    description: Find Kukutiki in the current guide and play it on the configured display.
     mode: single
+    trace:
+      stored_traces: 0
     sequence:
-      - action: rest_command.epg_voice_play
+      - action: script.epg_voice_play_programme
         data:
           query: Kukutiki
-          target: kitchen
-        response_variable: gateway_response
-      - if:
-          - condition: template
-            value_template: "{{ gateway_response.status != 200 }}"
-        then:
-          - stop: The video gateway could not start playback.
-            error: true
+
+  play_news_channel:
+    alias: Play News Channel
+    description: Play the current programme on the configured news channel.
+    mode: single
+    trace:
+      stored_traces: 0
+    sequence:
+      - action: script.epg_voice_play_programme
+        data:
+          channel_id: !secret epg_voice_news_channel_id

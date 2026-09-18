@@ -336,6 +336,15 @@ class Catalog:
         except CatalogStorageError:
             raise CatalogUnavailable() from None
 
+    async def current_on_channel(self, channel_id: str, *, now: datetime | None = None) -> list[ProgramMatch]:
+        """Resolve a saved channel against the fresh catalogue's current schedule."""
+        if not self.ready:
+            raise CatalogUnavailable()
+        try:
+            return await asyncio.to_thread(self.store.current_on_channel, channel_id, now or datetime.now(UTC))
+        except CatalogStorageError:
+            raise CatalogUnavailable() from None
+
     def stream_url(self, match: ProgramMatch) -> str:
         if not self.ready:
             raise CatalogUnavailable()

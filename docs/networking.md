@@ -88,7 +88,11 @@ transcoding service; this gateway does not resize video.
 
 Google playback uses Home Assistant and Cast. The supported initial voice path
 is a configured Google Home Routine activating an exposed Home Assistant script
-with a predefined program query and target. This is not a general Google
+with a predefined programme query or catalogue channel and a fixed display.
+The HA dispatcher calls the gateway over the LAN, then starts Cast locally.
+Only Google's HA account-linking and fulfillment paths need a reachable
+control endpoint for the manual Google integration; the gateway control API
+can remain private. This is not a general Google
 conversational endpoint accepting an arbitrary spoken program title. Google's
 Conversational Actions were discontinued; exposing an HTTPS API alone does not
 restore that feature. A Google Home speaker without a screen must target a

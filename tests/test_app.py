@@ -42,6 +42,9 @@ class StubCatalog:
 
     def __init__(self, matches):
         self.resolve = AsyncMock(return_value=matches)
+        self.current_on_channel = AsyncMock(side_effect=lambda channel_id: [
+            match for match in matches if match.channel_id == channel_id
+        ])
         self.stream_url = Mock(side_effect=lambda match: (
             f"{PROXY}/channel/{match.channel_id}/index.m3u8?secret=synthetic-upstream"
         ))
@@ -127,6 +130,7 @@ def test_control_authentication_precedes_catalog_and_session_creation(api, path,
         assert response.status_code == 401
         assert response.headers["Cache-Control"] == "no-store"
         run.catalog.resolve.assert_not_awaited()
+        run.catalog.current_on_channel.assert_not_awaited()
         create.assert_not_called()
         assert run.requests == []
 
@@ -183,6 +187,8 @@ def test_selected_channel_gets_its_own_scoped_playback_session(api):
         assert f"/channel/{selected.channel_id}/" in resource.upstream_url
         assert "synthetic-upstream" not in response.text
         run.catalog.stream_url.assert_called_once_with(selected)
+        run.catalog.resolve.assert_awaited_once_with("Kukutiki")
+        run.catalog.current_on_channel.assert_not_awaited()
         assert run.requests == []
 
 
@@ -193,6 +199,88 @@ def test_unknown_selected_channel_does_not_fall_back_to_another_match(api):
         })
         assert response.status_code == 404
         run.catalog.stream_url.assert_not_called()
+        run.catalog.current_on_channel.assert_not_awaited()
+
+
+def test_title_filter_does_not_fall_back_to_a_saved_channel_airing_another_title(api):
+    selected = program()
+    with api(matches=[selected]) as run:
+        run.catalog.resolve.return_value = []
+        response = run.client.post("/v1/play", headers=AUTH, json={
+            "query": "A Different Programme", "channel_id": selected.channel_id,
+        })
+        assert response.status_code == 404
+        run.catalog.resolve.assert_awaited_once_with("A Different Programme")
+        run.catalog.current_on_channel.assert_not_awaited()
+        run.catalog.stream_url.assert_not_called()
+
+
+@pytest.mark.parametrize("optional_query", [{}, {"query": None}, {"query": ""}, {"query": " \t\n"}])
+def test_saved_channel_plays_current_programme_without_a_title_query(api, optional_query):
+    selected = program("b" * 24, "Favourite Channel")
+    with api(matches=[program(), selected]) as run:
+        response = run.client.post("/v1/play", headers=AUTH, json={
+            "channel_id": selected.channel_id, **optional_query,
+        })
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "ready"
+        assert body["programme"]["channel_id"] == selected.channel_id
+        assert body["programme"]["title"] == selected.title
+        assert "synthetic-upstream" not in response.text
+        token, resource_name = urlsplit(body["media_url"]).path.split("/")[-2:]
+        resource = run.app.state.sessions.resolve(token, resource_name)
+        assert f"/channel/{selected.channel_id}/" in resource.upstream_url
+        run.catalog.current_on_channel.assert_awaited_once_with(selected.channel_id)
+        run.catalog.resolve.assert_not_awaited()
+        run.catalog.stream_url.assert_called_once_with(selected)
+        assert run.requests == []
+
+
+@pytest.mark.parametrize("matches,status,error", [
+    ([], 404, "no_current_programme"),
+    ([program("b" * 24)], 404, "no_current_programme"),
+    ([program(), program()], 409, "ambiguous_programme"),
+])
+def test_saved_channel_without_unique_current_programme_never_starts_playback(api, matches, status, error):
+    with api(matches=matches) as run:
+        with patch.object(run.app.state.sessions, "create") as create:
+            response = run.client.post("/v1/play", headers=AUTH, json={"channel_id": "a" * 24})
+        assert response.status_code == status
+        assert response.json()["error"] == error
+        assert "media_url" not in response.json()
+        run.catalog.resolve.assert_not_awaited()
+        run.catalog.stream_url.assert_not_called()
+        create.assert_not_called()
+
+
+@pytest.mark.parametrize("payload", [
+    {}, {"target": "kitchen"}, {"query": None}, {"query": " \t\n"},
+    {"channel_id": ""}, {"channel_id": "A" * 24}, {"channel_id": "../channel"},
+    {"channel_id": "https://other.example.test/live.m3u8"},
+    {"query": 123, "channel_id": "a" * 24},
+    {"query": "x" * 201, "channel_id": "a" * 24},
+    {"channel_id": "a" * 24, "url": "https://other.example.test/live.m3u8"},
+])
+def test_invalid_saved_channel_requests_are_rejected_before_catalog_access(api, payload):
+    with api() as run:
+        with patch.object(run.app.state.sessions, "create") as create:
+            response = run.client.post("/v1/play", headers=AUTH, json=payload)
+        assert response.status_code == 400
+        run.catalog.resolve.assert_not_awaited()
+        run.catalog.current_on_channel.assert_not_awaited()
+        create.assert_not_called()
+
+
+def test_saved_channel_stale_catalog_error_does_not_create_session(api):
+    with api() as run:
+        run.catalog.current_on_channel.side_effect = CatalogUnavailable()
+        with patch.object(run.app.state.sessions, "create") as create:
+            response = run.client.post("/v1/play", headers=AUTH, json={"channel_id": "a" * 24})
+        assert response.status_code == 503
+        assert response.json() == {"error": "catalog_unavailable"}
+        run.catalog.stream_url.assert_not_called()
+        create.assert_not_called()
 
 
 @pytest.mark.parametrize("target,status", [
@@ -209,14 +297,15 @@ def test_unapproved_targets_do_not_create_or_dispatch_playback(api, target, stat
         assert run.requests == []
 
 
-def test_cast_success_dispatches_the_same_scoped_url_returned_to_caller(api):
+@pytest.mark.parametrize("selection", [{"query": "Kukutiki"}, {"channel_id": "a" * 24}])
+def test_cast_success_dispatches_the_same_scoped_url_returned_to_caller(api, selection):
     def handler(request):
         assert str(request.url) == "https://ha.example.test/api/services/media_player/play_media"
         return httpx.Response(200, json=[])
 
     with api(handler=handler) as run:
         response = run.client.post("/v1/play", headers=AUTH, json={
-            "query": "Kukutiki", "target": "kitchen",
+            **selection, "target": "kitchen",
         })
         assert response.status_code == 200
         assert response.json()["status"] == "playing"

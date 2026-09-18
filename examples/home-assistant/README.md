@@ -2,80 +2,114 @@
 
 The supported route is:
 
-**Google Routine -> exposed Home Assistant script -> gateway `/v1/play` ->
-Home Assistant Cast -> configured display**
+**Google voice shortcut -> exposed fixed HA script -> private HA dispatcher ->
+gateway `/v1/play` -> HA Cast -> configured display**
 
-The script contains a fixed program query and a fixed target alias. Google does
-not supply an arbitrary spoken program name to this script. This example does
-not depend on the discontinued Google Conversational Actions service.
+Home Assistant requests a fresh signed stream URL, then calls its own
+`media_player.play_media` action. The gateway does not need a Home Assistant
+token for this setup. Leave `EPG_HA_URL`, `EPG_HA_TOKEN`, and `EPG_HA_TARGETS`
+unset unless another client uses the gateway's optional Cast adapter.
+
+The examples provide **Play Kukutiki**, which searches the current EPG, and
+**Play News Channel**, which selects a verified catalogue channel. A channel
+request still requires a fresh current programme in the guide. It does not
+depend on the changing title of the news broadcast.
 
 ## Install
 
-1. Add your Nest Hub, Chromecast, or other compatible display to the Home
-   Assistant Google Cast integration. Confirm ordinary video playback first.
-2. Configure the gateway's Home Assistant URL, bearer token, and allowed target
-   aliases. For this example, map `kitchen` to the actual `media_player` entity.
-   The gateway does not accept an arbitrary entity ID or service from the caller.
-3. Merge the example secrets into your private Home Assistant `secrets.yaml`.
-   Use an address that Home Assistant can reach. A direct LAN route is suitable;
-   a public Cloudflare command endpoint is not required for this local call.
-4. Install [`package.yaml`](package.yaml) as a Home Assistant package, or merge
-   its `rest_command` and `script` sections into your existing configuration.
-   Validate the configuration and reload the affected integration and scripts,
-   or restart Home Assistant when required.
-5. Run `script.play_kukutiki` manually. A successful API response means Home
-   Assistant accepted the playback command. Confirm the display actually plays
-   the selected live channel, including audio.
-6. Expose `script.play_kukutiki` through your existing Home Assistant Google
-   Assistant integration. Scripts are exposed as scenes. Assign the script an
-   area if other household members need to use it.
-7. Create a Google Home Routine with the starter **"Play Kukutiki"** and an
-   action that activates the exposed **Play Kukutiki** scene. The exact available
-   Routine action wording depends on the Google Home interface and language.
+1. Add the display through Home Assistant's Google Cast integration and confirm
+   ordinary video playback, including audio, on the physical device.
+2. Merge [`secrets.example.yaml`](secrets.example.yaml) into private HA
+   `secrets.yaml`. Set the fixed `media_player` entity, the gateway API token,
+   and a gateway URL that HA can reach. A direct LAN route is suitable; this
+   local call does not require a public Cloudflare endpoint.
+3. Set `epg_voice_news_channel_id` to a verified channel ID from the gateway's
+   catalogue. An authenticated `/v1/resolve` search for a programme currently on
+   that channel returns its `channel_id`. Confirm its channel name and playback
+   before using it. Remove `play_news_channel` and its Google exposure entry if
+   you do not want this optional shortcut.
+4. Configure `EPG_TITLE_ALIASES` in the gateway when the spoken title differs
+   from the guide spelling; for example, `{"kukutiki":["Кукутики"]}`.
+5. Load [`package.yaml`](package.yaml) through HA packages, or merge its sections
+   into your configuration. It does not enable a Google integration. Validate
+   the complete HA configuration, then reload REST commands and scripts, or
+   restart HA when required.
+6. Run `script.play_kukutiki` or `script.play_news_channel` manually. Check the
+   physical display. A successful script call alone does not establish that
+   the device has decoded the video.
+7. Keep `script.epg_voice_play_programme` unexposed to Google and Assist. Expose
+   only the fixed wrappers. For an existing manual Google integration, merge
+   [`google-assistant.example.yaml`](google-assistant.example.yaml) alongside
+   its project and credentials. Apply the explicit dispatcher exclusion before
+   syncing, particularly if `expose_by_default` is enabled. Assign wrappers to
+   an HA area so other household members can use them, then sync Google devices.
+8. First try **"Hey Google, activate Play Kukutiki"**. For a shorter phrase,
+   create a Google Home Routine with starter **"Play Kukutiki"** and an action
+   that activates the **Play Kukutiki** scene. Repeat for **Play News Channel**.
+   Exact recognition and Routine wording depend on account language and device;
+   verify both phrases on the actual Google speaker or display.
 
-If you configure Google Assistant exposure in YAML, merge this entry into the
-existing integration rather than creating a second top-level configuration:
+If you already use Home Assistant Cloud instead of manual Google integration,
+omit the separate Google configuration fragment and set the same exposure choices
+in the Cloud UI. This example does not require or enable a subscription.
 
-```yaml
-google_assistant:
-  # Keep the existing project and credential settings here.
-  entity_config:
-    script.play_kukutiki:
-      name: Play Kukutiki
-      expose: true
-```
+Google exposes HA scripts as scenes. It does **not** pass arbitrary spoken
+programme names into script fields. The dispatcher can accept a variable query
+from another authorized HA automation, but the Google wrappers deliberately
+have fixed inputs and a fixed playback device. Add a wrapper and a Routine for
+each additional favourite programme. This setup does not use retired Google
+Conversational Actions or require Gemini.
 
-Create another fixed script and Routine for each program or target you need.
-The API itself accepts a query string, so a different supported voice frontend
-can call the same gateway without changing the EPG or playback service.
+## Dispatcher inputs and failures
 
-## Playback and authentication
+`script.epg_voice_play_programme` accepts `query`, `channel_id`, or both. With
+both supplied, the channel filters the title search. It sends no `target` to
+the gateway, which returns a session with status `ready`. HA then starts Cast
+playback locally with HLS content type, `LIVE` stream type, programme title and
+channel metadata. The player entity is fixed in `secrets.yaml`; a voice caller
+cannot choose another entity or service.
 
-- `EPG_API_TOKEN` authenticates the script to the gateway. It is separate from
-  the Home Assistant bearer token used by the gateway to call `play_media`.
-- Keep both tokens in private configuration or secret storage. Do not paste
-  them, provider URLs, or playlist credentials into public examples or logs.
-- The Cast receiver must reach the returned HTTPS media URL and its referenced
-  resources. Cloudflare Access browser login and custom service-token headers
-  are not a playback authentication mechanism for the receiver.
-- The gateway forwards a scoped session URL. It does not transcode streams;
-  codecs and resolution must work on the selected physical device.
-- Non-200 gateway replies fail the example script rather than reporting that
-  playback started. A successful command remains distinct from device playback.
-- Home Assistant supports manual Google Assistant integration without requiring
-  a Home Assistant Cloud subscription. Use the integration already configured
-  for your home; this example does not purchase or enable a subscription.
+- Missing inputs stop before a network request.
+- HTTP 404 means no current programme was found.
+- HTTP 409 means the title is ambiguous; configure a more specific title or a
+  verified `channel_id` in the fixed wrapper.
+- Other HTTP failures, connection errors, and malformed success responses stop
+  the script before Cast playback. Response bodies are not copied into errors.
+- A Cast service error fails the script. Google's scene acknowledgment can occur
+  before the background script finishes, so it is not a playback confirmation.
 
-Home Assistant may fetch the HLS manifest and start the Cast receiver before
-answering the gateway. The gateway allows 40 seconds for that response, with
-five-second connection, pool, and write timeouts. The example `rest_command`
-waits 60 seconds so the outer request can outlast the gateway's playback call.
-Keep this timeout ordering when adapting the script: ending the gateway's wait
-too early can revoke a session while the display is still starting playback.
+The REST command waits up to 60 seconds to obtain the session. Receiver startup
+happens afterward inside HA, so it does not compete with the gateway adapter's
+HTTP timeout. The alternative gateway-managed Cast adapter allows a 40-second
+response read budget with five-second connection, write, and pool limits; keep
+any caller's timeout longer when using that separate route.
+
+## Playback and private data
+
+- The only gateway credential in HA is `EPG_API_TOKEN`, supplied as a Bearer
+  authorization header. Keep the token and deployment details out of Git.
+- All supplied scripts disable saved traces because the response contains a
+  signed media URL. Disable traces in any calling automation that stores the
+  response too. Do not return the session URL from the dispatcher.
+- Keep `homeassistant.components.rest_command` at `warning` or higher; debug
+  logs can include the Authorization header. The package sets this explicitly.
+  Cast and HTTP diagnostics can contain media URLs; keep HA logs private and
+  redact URLs before sharing them. Disabling script traces is not log redaction.
+  The Cast entity can also contain its current media URL; treat HA state,
+  recorder history, and backups as private.
+- The receiver must reach every HTTPS media resource itself. Use trusted TLS
+  and a hostname resolvable by the receiver. Cast devices may use Google DNS,
+  so `.local` or LAN-only DNS overrides may fail even when HA resolves them.
+- Cloudflare Access browser login and service-token headers are unsuitable for
+  receiver media requests. Playback uses the gateway's bounded signed URL.
+- The gateway does not transcode. Verify codecs and resolution on the display.
+  Sessions expire and are invalidated by gateway restarts; request playback
+  again when a session ends.
 
 ## References
 
-- [Home Assistant Google Assistant integration and exposed scripts](https://www.home-assistant.io/integrations/google_assistant/)
-- [Home Assistant Google Cast integration](https://www.home-assistant.io/integrations/cast/)
-- [Home Assistant RESTful Command responses](https://www.home-assistant.io/integrations/rest_command/)
+- [HA Google Assistant integration and script exposure](https://www.home-assistant.io/integrations/google_assistant/)
+- [HA Cast playback and metadata](https://www.home-assistant.io/integrations/cast/)
+- [HA REST command responses](https://www.home-assistant.io/integrations/rest_command/)
+- [HA script syntax and errors](https://www.home-assistant.io/docs/scripts/)
 - [Google Conversational Actions sunset](https://developers.google.com/assistant/ca-sunset)

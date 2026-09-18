@@ -1,0 +1,12 @@
+# Merge these exposure entries with an existing, configured manual integration.
+# Do not load this fragment as a standalone Google Assistant configuration.
+google_assistant:
+  entity_config:
+    script.epg_voice_play_programme:
+      expose: false
+    script.play_kukutiki:
+      name: Play Kukutiki
+      expose: true
+    script.play_news_channel:
+      name: Play News Channel
+      expose: true

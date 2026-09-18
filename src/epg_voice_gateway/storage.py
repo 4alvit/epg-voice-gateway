@@ -333,6 +333,35 @@ class CatalogStore:
             except (sqlite3.Error, ValueError, OverflowError):
                 raise CatalogStorageError("EPG programmes could not be searched") from None
 
+    def current_on_channel(self, channel_id: str, instant: datetime) -> list[ProgramMatch]:
+        """Read at most twenty current programmes through the channel/time index.
+
+        Overlapping guide entries remain separate so callers can reject an
+        ambiguous schedule instead of choosing a programme silently.
+        """
+        if not isinstance(channel_id, str) or not channel_id:
+            raise CatalogStorageError("Invalid EPG channel request")
+        try:
+            timestamp = _timestamp(instant)
+        except (TypeError, AttributeError, ValueError, OverflowError):
+            raise CatalogStorageError("Invalid EPG channel request") from None
+        with self._lock:
+            try:
+                rows = self._open_connection().execute("""
+                    SELECT title, channel_id, channel_name, starts_at, ends_at
+                    FROM programmes
+                    WHERE channel_id = ? AND starts_at <= ? AND ends_at > ?
+                    ORDER BY starts_at
+                    LIMIT ?
+                """, (channel_id, timestamp, timestamp, _MAX_RESULTS)).fetchall()
+                return [ProgramMatch(
+                    row["title"], row["channel_id"], row["channel_name"],
+                    datetime.fromtimestamp(row["starts_at"], UTC),
+                    datetime.fromtimestamp(row["ends_at"], UTC),
+                ) for row in rows]
+            except (sqlite3.Error, ValueError, OverflowError):
+                raise CatalogStorageError("The current EPG programme could not be read") from None
+
     def stream_url(self, channel_id: str) -> str | None:
         with self._lock:
             try:

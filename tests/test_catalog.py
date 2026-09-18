@@ -43,6 +43,25 @@ async def test_current_window_alias_and_no_credentials_in_results():
         assert "private" not in repr(result)
         assert await catalog.resolve("Кукутики", now=NOW + timedelta(minutes=10)) == []
         assert await catalog.resolve("кукут", now=NOW) == []
+        assert await catalog.current_on_channel(result[0].channel_id, now=NOW) == result
+        assert await catalog.current_on_channel(result[0].channel_id, now=NOW - timedelta(minutes=10)) == result
+        assert await catalog.current_on_channel(result[0].channel_id, now=NOW + timedelta(minutes=10)) == []
+        assert await catalog.current_on_channel("f" * 24, now=NOW) == []
+
+
+async def test_saved_channel_requires_loaded_catalog_and_hides_storage_errors():
+    async with httpx.AsyncClient() as client:
+        catalog = Catalog(settings(), client)
+        try:
+            with pytest.raises(CatalogUnavailable):
+                await catalog.current_on_channel("a" * 24, now=NOW)
+            catalog.updated_at = catalog.clock()
+            catalog.close()
+            with pytest.raises(CatalogUnavailable) as error:
+                await catalog.current_on_channel("a" * 24, now=NOW)
+            assert error.value.code == "catalog_unavailable"
+        finally:
+            catalog.close()
 
 
 async def test_cross_feed_id_collision_does_not_launch_wrong_channel():
@@ -74,9 +93,13 @@ async def test_failed_refresh_retains_last_good_then_expires():
         with pytest.raises(CatalogUnavailable):
             await catalog.refresh()
         assert len(await catalog.resolve("Kukutiki", now=NOW)) == 1
+        current = await catalog.resolve("Kukutiki", now=NOW)
+        assert await catalog.current_on_channel(current[0].channel_id, now=NOW) == current
         clock[0] = 10000
         with pytest.raises(CatalogUnavailable):
             await catalog.resolve("Kukutiki", now=NOW)
+        with pytest.raises(CatalogUnavailable):
+            await catalog.current_on_channel(current[0].channel_id, now=NOW)
 
 
 async def test_positive_playlist_shift_moves_programme_forward():
@@ -132,6 +155,7 @@ async def test_persisted_catalog_survives_restart_without_network(tmp_path):
         try:
             assert restored.ready
             assert await restored.resolve("Kukutiki", now=NOW) == original
+            assert await restored.current_on_channel(original[0].channel_id, now=NOW) == original
             assert restored.stream_url(original[0]).endswith("q=private")
         finally:
             restored.close()

@@ -155,6 +155,32 @@ def test_search_requires_current_programme_including_exact_start_excluding_exact
     assert store.resolve({"Show"}, NOW.astimezone(timezone(timedelta(hours=3)))) == [records[0]]
 
 
+def test_saved_channel_tracks_programme_changes_with_exact_time_boundaries(store):
+    previous = programme("Previous", start=NOW - timedelta(hours=1), end=NOW)
+    current = programme("Current", start=NOW, end=NOW + timedelta(minutes=30))
+    following = programme("Next", start=current.ends_at, end=NOW + timedelta(hours=1))
+    unrelated = programme("Current", "other", "Other")
+    store.replace([channel(), channel("other", "Other"), channel("unscheduled")],
+                  [previous, current, following, unrelated], 1)
+
+    assert store.current_on_channel("kids", NOW) == [current]
+    assert store.current_on_channel("kids", NOW.astimezone(timezone(timedelta(hours=3)))) == [current]
+    assert store.current_on_channel("kids", current.ends_at) == [following]
+    assert store.current_on_channel("kids", following.ends_at) == []
+    assert store.current_on_channel("unscheduled", NOW) == []
+    assert store.current_on_channel("unknown", NOW) == []
+    assert store.current_on_channel("kids' OR 1=1 --", NOW) == []
+
+
+def test_saved_channel_preserves_ambiguity_and_bounds_overlapping_results(store):
+    records = [programme(f"Overlapping {number}", start=NOW - timedelta(minutes=number + 1))
+               for number in range(25)]
+    store.replace([channel()], records, 1)
+    matches = store.current_on_channel("kids", NOW)
+    assert len(matches) == 20
+    assert matches == list(reversed(records))[:20]
+
+
 @pytest.mark.parametrize("query,expected", [
     ("кукутики", True), ("ЕЛКА КУКУТИКИ", True), ("Кукутики: песенки", True),
     ("кукут", False), ("кукутики песня", False), ("песенки кукутики", False),
