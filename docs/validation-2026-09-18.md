@@ -373,6 +373,29 @@ The temporary observer was deleted after verification; the API confirmed zero
 active tails, and both local diagnostic observers were stopped. Persistent
 request logging was not enabled.
 
+## Household Alexa playback confirmation
+
+The user subsequently confirmed that CNN plays on an Alexa device. This adds
+human confirmation of actual channel playback to the signed control and
+response-contract checks above. The report did not specify playback duration,
+pause/resume behavior or the exact device model, so those details remain open.
+
+The same user reported that Alexa on a Samsung Family Hub refrigerator says
+it cannot play video skills. That target has not passed playback acceptance.
+The adapter currently requires `VideoApp` and otherwise returns a spoken
+unsupported-device response before catalogue lookup or media-session creation.
+The refrigerator's signed capability envelope and exact spoken wording were
+not captured, so this report alone does not distinguish that adapter response
+from an Amazon-side invocation restriction.
+
+Amazon documents that not all screened devices implement
+[VideoApp](https://developer.amazon.com/en-US/docs/alexa/custom-skills/videoapp-interface-reference.html).
+Previously displayed APL energy cards do not establish this capability. An
+[APL Video](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/apl-video.html)
+fallback would be a separate implementation requiring the target's explicit
+video capabilities and a physical playback test; it is not installed or
+validated by this result.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed
@@ -380,9 +403,10 @@ news voice shortcut have passed their recorded checks. Google Home phone UI
 visibility, continued scheduled resynchronization as programmes change, dynamic
 catalogue speech recognition and repeated dynamic programme selection remain
 open. The named-channel microphone and physical playback checks are recorded
-separately above. HD compatibility and longer source stability also remain open. Alexa
-physical playback was not established by these Google/Cast checks. No public
-integration release or PR merge occurred.
+separately above. HD compatibility and longer source stability also remain open.
+Alexa CNN playback has the separate household confirmation above; refrigerator
+compatibility and playback controls remain unverified. No public integration
+release or PR merge occurred.
 
 Raw diagnostics and deployment-specific helpers remain private. Earlier native
 observer checks could implicitly launch a Cast receiver and are inconclusive;
