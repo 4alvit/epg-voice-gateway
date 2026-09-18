@@ -82,6 +82,17 @@ This plan preserves the zone's Bot Fight Mode and introduces the documented
 Workers VPC beta dependency. Completing the deployment is not proof that
 Google account linking succeeded.
 
+The relay defaults to stock HA fulfillment: Terraform `channels_enabled = false`,
+or a missing/string `"false"` `CHANNELS_ENABLED` binding. For the optional
+[Home Channels integration](google-channels.md), install and verify its
+authenticated HA endpoint first, then set `channels_enabled = true` or the
+binding to the exact string `"true"`. Other configured values fail closed.
+The relay's public `/api/google_assistant` and `/auth/token` URLs do not change;
+only the fixed private fulfillment path changes to
+`/api/epg_voice/google_assistant`. Browser authorization, OAuth credentials,
+VPC destination, tunnel, WAF rules and billing remain unchanged. A caller
+cannot activate this option through a header, body field or query parameter.
+
 ## Plan B: ordinary Cloudflare Tunnel with Bot Fight Mode disabled
 
 This is a documented fallback, not a step to perform during Plan A. Do not
@@ -95,13 +106,21 @@ Phone browser -> existing HA HTTPS hostname -> ordinary Cloudflare Tunnel -> HA
 Google token exchange and fulfillment -> same HA HTTPS hostname -> same Tunnel -> HA
 ```
 
+Choose the direct fulfillment path before switching. If Home Channels is
+enabled, use its authenticated `/api/epg_voice/google_assistant` endpoint and
+retain the installed extension. Otherwise use stock `/api/google_assistant`.
+Returning a channel-enabled installation to the stock endpoint would drop
+Home Channels from subsequent device discovery. The relay's operator binding
+does not affect requests that bypass it. See the
+[channel routing instructions](google-channels.md#route-google-fulfillment).
+
 1. Record the current Bot Fight Mode setting, the two Google Console URLs,
    and the existing HA hostname privately. Identify the configuration owner:
    if zone settings are managed with Terraform, prepare and review the change
    there rather than creating dashboard drift. Preserve the tunnel, its DNS
    record, HA authentication and the unrelated zone settings.
-2. Check the existing public tunnel route for `/auth/token` and
-   `/api/google_assistant`. Review WAF rules, Cloudflare Access policies,
+2. Check the existing public tunnel route for `/auth/token` and the selected
+   fulfillment path. Review WAF rules, Cloudflare Access policies,
    country restrictions and source-IP allowlists for those paths. Google
    cannot complete an interactive Access login or a browser challenge during
    these server calls. A rule allowing only the home's IP will still reject
@@ -114,10 +133,13 @@ Google token exchange and fulfillment -> same HA HTTPS hostname -> same Tunnel -
    should reject an invalid Bearer token with HTTP 401. Check that responses
    are not Cloudflare challenges. A successful probe from home still does
    not establish Google's access.
-4. In Google Home Developer Console, restore the prior **Token URL** to
-   `https://YOUR_HA_HOST/auth/token` and **Cloud fulfillment URL** to
-   `https://YOUR_HA_HOST/api/google_assistant`. Use the actual existing HTTPS
-   hostname in the private configuration. Keep the browser **Authorization
+4. In Google Home Developer Console, set the **Token URL** to
+   `https://YOUR_HA_HOST/auth/token`. Set **Cloud fulfillment URL** to
+   `https://YOUR_HA_HOST/api/epg_voice/google_assistant` when Home Channels is
+   enabled, or `https://YOUR_HA_HOST/api/google_assistant` for stock HA. Use the
+   actual existing HTTPS hostname in the private configuration. Only the
+   fulfillment path depends on the channel option; token exchange still uses
+   `/auth/token`. Keep the browser **Authorization
    URL**, Google **Client ID**, scopes and disabled HTTP Basic option
    unchanged. Do not introduce a shared HA token or change account privileges.
 5. Start a fresh linking attempt in the phone's Google Home app. Do not reuse

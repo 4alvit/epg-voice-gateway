@@ -1,0 +1,12 @@
+{
+  "domain": "epg_voice_channels",
+  "name": "EPG Voice Channels",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["google_assistant", "http"],
+  "documentation": "https://github.com/4alvit/epg-voice-gateway/blob/main/docs/google-channels.md",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -203,6 +203,11 @@ def create_app(
         authorize(request)
         return await request.app.state.catalog.voice_catalogue()
 
+    @app.get("/v1/channels")
+    async def channels(request: Request):
+        authorize(request)
+        return await request.app.state.catalog.channel_catalogue()
+
     @app.post("/v1/play")
     async def play(request: Request):
         authorize(request)

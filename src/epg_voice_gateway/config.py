@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     voice_catalogue_limit: int = Field(default=30, ge=1, le=50)
     voice_channel_ids: list[str] = Field(default_factory=list, max_length=200)
     voice_preferred_queries: list[str] = Field(default_factory=list, max_length=50)
+    channel_voice_ids: list[str] = Field(default_factory=list, max_length=200)
+    channel_voice_limit: int = Field(default=30, ge=1, le=200)
     refresh_seconds: int = Field(default=300, ge=30, le=86400)
     max_stale_seconds: int = Field(default=900, ge=60, le=172800)
     session_ttl_seconds: int = Field(default=7200, ge=60, le=86400)
@@ -53,7 +55,7 @@ class Settings(BaseSettings):
     ha_token: SecretStr = SecretStr("")
     ha_targets: dict[str, str] = Field(default_factory=dict)
 
-    @field_validator("voice_channel_ids")
+    @field_validator("voice_channel_ids", "channel_voice_ids")
     @classmethod
     def voice_channels(cls, values: list[str]) -> list[str]:
         if any(not re.fullmatch(r"[a-f0-9]{24}", value) for value in values):

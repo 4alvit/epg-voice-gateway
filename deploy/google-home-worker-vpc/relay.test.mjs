@@ -76,33 +76,108 @@ test("preserves form bytes and only Content-Type through the fixed private token
   assert.equal(init.signal.aborted, false);
 });
 
-test("forwards authenticated SYNC bytes and only the two allowed fulfillment headers", async () => {
-  const syncResponse = '{"requestId":"synthetic","payload":{"agentUserId":"synthetic-user","devices":[]}}';
-  const upstream = backend(() => new Response(syncResponse, { headers: { "Content-Type": "application/json" } }));
-  const response = await worker.fetch(request("/api/google_assistant", syncBody, {
-    Cookie: "never-forward", Forwarded: "for=spoofed", "X-Forwarded-For": "192.0.2.1",
-  }), upstream.env);
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), syncResponse);
-  assert.equal(upstream.calls.length, 1);
-  const [url, init] = upstream.calls[0];
-  assert.equal(url, "http://home-assistant/api/google_assistant");
-  assert.deepEqual(new Uint8Array(init.body), encoder.encode(syncBody));
-  assert.deepEqual(Object.fromEntries(init.headers), {
-    authorization: "Bearer synthetic.access.token", "content-type": "application/json;charset=UTF-8",
-  });
-});
-
-for (const [status, type, body] of [
-  [401, "text/plain", "401: Unauthorized"],
-  [403, "text/html", "<html>Private rejection details</html>"],
-]) {
-  test(`preserves non-JSON fulfillment ${status} as a safe JSON authentication boundary`, async () => {
-    const upstream = backend(() => new Response(body, { status, headers: {
-      "Content-Type": type, "Set-Cookie": "private=value", Server: "private-origin",
-    } }));
-    await assertError(await worker.fetch(request("/api/google_assistant", syncBody), upstream.env), status);
+for (const channelsEnabled of [undefined, "false", "true"]) {
+  test(`preserves SYNC bytes through the fixed fulfillment route with CHANNELS_ENABLED=${channelsEnabled}`, async () => {
+    const syncResponse = '{"requestId":"synthetic","payload":{"agentUserId":"synthetic-user","devices":[]}}';
+    const upstream = backend(() => new Response(syncResponse, { headers: { "Content-Type": "application/json" } }));
+    const response = await worker.fetch(request("/api/google_assistant", syncBody, {
+      Cookie: "never-forward", Forwarded: "for=spoofed", "X-Forwarded-For": "192.0.2.1",
+    }), { ...upstream.env, CHANNELS_ENABLED: channelsEnabled });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), syncResponse);
     assert.equal(upstream.calls.length, 1);
+    const [url, init] = upstream.calls[0];
+    assert.equal(url, channelsEnabled === "true"
+      ? "http://home-assistant/api/epg_voice/google_assistant"
+      : "http://home-assistant/api/google_assistant");
+    assert.equal(init.method, "POST");
+    assert.equal(init.redirect, "manual");
+    assert.ok(init.body instanceof ArrayBuffer);
+    assert.deepEqual(new Uint8Array(init.body), encoder.encode(syncBody));
+    assert.deepEqual(Object.fromEntries(init.headers), {
+      authorization: "Bearer synthetic.access.token", "content-type": "application/json;charset=UTF-8",
+    });
+    assert.equal(init.signal.aborted, false);
+  });
+
+  test(`caller routing hints cannot alter fulfillment with CHANNELS_ENABLED=${channelsEnabled}`, async () => {
+    const hint = channelsEnabled === "true" ? "false" : "true";
+    const body = JSON.stringify({
+      inputs: [{ intent: "action.devices.EXECUTE" }], url: "https://other.example/capture",
+      path: "/auth/token", CHANNELS_ENABLED: hint, channels_enabled: hint,
+    });
+    const upstream = backend();
+    const response = await worker.fetch(request("/api/google_assistant", body, {
+      "X-Original-URL": "/auth/token",
+      "X-Rewrite-URL": "https://other.example/capture",
+      "X-Forwarded-Host": "other.example",
+      "X-Forwarded-Proto": "https",
+      "Host": "other.example",
+      "CHANNELS_ENABLED": hint,
+      "X-Channels-Enabled": hint,
+    }), {
+      ...upstream.env, CHANNELS_ENABLED: channelsEnabled,
+      BACKEND_ORIGIN: "https://other.example", BACKEND_PATH: "/auth/token",
+    });
+    assert.equal(response.status, 200);
+    assert.equal(upstream.calls.length, 1);
+    const [url, init] = upstream.calls[0];
+    assert.equal(url, channelsEnabled === "true"
+      ? "http://home-assistant/api/epg_voice/google_assistant"
+      : "http://home-assistant/api/google_assistant");
+    assert.deepEqual(new Uint8Array(init.body), encoder.encode(body));
+    assert.deepEqual(Object.fromEntries(init.headers), {
+      authorization: "Bearer synthetic.access.token", "content-type": "application/json;charset=UTF-8",
+    });
+  });
+
+  test(`token exchange never changes with CHANNELS_ENABLED=${channelsEnabled}`, async () => {
+    const upstream = backend();
+    const response = await worker.fetch(request(), { ...upstream.env, CHANNELS_ENABLED: channelsEnabled });
+    assert.equal(response.status, 200);
+    assert.equal(upstream.calls.length, 1);
+    assert.equal(upstream.calls[0][0], "http://home-assistant/auth/token");
+    assert.deepEqual(new Uint8Array(upstream.calls[0][1].body), encoder.encode(tokenBody));
+  });
+
+  test(`queries and private paths remain unroutable with CHANNELS_ENABLED=${channelsEnabled}`, async () => {
+    const upstream = backend();
+    for (const path of [
+      "/api/google_assistant?channels_enabled=true",
+      "/api/google_assistant?channels_enabled=false",
+      "/api/epg_voice/google_assistant",
+    ]) {
+      const input = request(path, syncBody, {
+        "Content-Type": "application/json", Authorization: "Bearer synthetic.access.token",
+      });
+      await assertError(await worker.fetch(input, { ...upstream.env, CHANNELS_ENABLED: channelsEnabled }), 404);
+    }
+    assert.equal(upstream.calls.length, 0);
+  });
+
+  for (const [status, type, body] of [
+    [401, "text/plain", "401: Unauthorized"],
+    [403, "text/html", "<html>Private rejection details</html>"],
+  ]) {
+    test(`preserves non-JSON fulfillment ${status} with CHANNELS_ENABLED=${channelsEnabled}`, async () => {
+      const upstream = backend(() => new Response(body, { status, headers: {
+        "Content-Type": type, "Set-Cookie": "private=value", Server: "private-origin",
+      } }));
+      await assertError(await worker.fetch(request("/api/google_assistant", syncBody), {
+        ...upstream.env, CHANNELS_ENABLED: channelsEnabled,
+      }), status);
+      assert.equal(upstream.calls.length, 1);
+    });
+  }
+}
+
+for (const value of [null, true, false, 1, 0, "", "TRUE", "False", " true", "false ", "/api/other", {}, []]) {
+  test(`fails closed for invalid CHANNELS_ENABLED ${JSON.stringify(value)}`, async () => {
+    const upstream = backend();
+    for (const input of [request(), request("/api/google_assistant", syncBody)]) {
+      await assertError(await worker.fetch(input, { ...upstream.env, CHANNELS_ENABLED: value }), 502);
+    }
+    assert.equal(upstream.calls.length, 0);
   });
 }
 
@@ -128,6 +203,8 @@ for (const [method, path] of [
   ["POST", "/"], ["POST", "/auth/authorize"], ["POST", "/auth/token/"],
   ["POST", "/auth/token?"], ["POST", "/auth/token?url=https://other.example"],
   ["POST", "/api/google_assistant?access_token=synthetic"],
+  ["POST", "/api/google_assistant/"], ["POST", "/api/%67oogle_assistant"],
+  ["POST", "/api/epg_voice/google_assistant"],
   ["POST", "/%61uth/token"], ["POST", "/auth//token"], ["POST", "/auth/token#fragment"],
 ]) {
   test(`rejects ${method} ${path} without contacting the backend`, async () => {

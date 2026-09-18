@@ -29,7 +29,8 @@ function mediaType(value) {
 
 function route(request, env) {
   if (typeof env?.PUBLIC_HOST !== "string" || env.PUBLIC_HOST.length > 253
-      || !PUBLIC_HOST_PATTERN.test(env.PUBLIC_HOST)) {
+      || !PUBLIC_HOST_PATTERN.test(env.PUBLIC_HOST)
+      || (env.CHANNELS_ENABLED !== undefined && !["true", "false"].includes(env.CHANNELS_ENABLED))) {
     throw new Error("Invalid deployment configuration");
   }
   const url = new URL(request.url);
@@ -115,7 +116,11 @@ async function relay(request, env, path, signal) {
     throw new RequestError(400);
   }
   signal.throwIfAborted();
-  const response = await env.BACKEND.fetch(`${BACKEND_ORIGIN}${path}`, {
+  // The operator can opt fulfillment into the fixed authenticated extension.
+  // Missing configuration preserves the stock HA route; OAuth never changes.
+  const backendPath = path === "/api/google_assistant" && env.CHANNELS_ENABLED === "true"
+    ? "/api/epg_voice/google_assistant" : path;
+  const response = await env.BACKEND.fetch(`${BACKEND_ORIGIN}${backendPath}`, {
     method: "POST",
     headers,
     // A fixed-length body avoids chunked request encoding at the HA origin.

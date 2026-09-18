@@ -54,6 +54,13 @@ variable "backend_port" {
   }
 }
 
+variable "channels_enabled" {
+  description = "Route fulfillment to the fixed authenticated EPG Voice extension only after installing and verifying it on the Home Assistant backend. False preserves the stock Home Assistant endpoint."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
 variable "publish" {
   description = "Enable this Worker's production workers.dev address only after the initial disabled deployment and backend verification."
   type        = bool

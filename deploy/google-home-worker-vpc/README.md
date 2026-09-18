@@ -17,7 +17,9 @@ media route. HA's ordinary non-admin permissions still determine the linked
 user's access; the relay does not provide entity-level OAuth scopes.
 
 Adding these files does not deploy or publish a route. The templates start with
-publication disabled. Do not simply forward to the challenged public HA host:
+publication disabled and stock HA fulfillment selected. The optional channel
+extension is enabled separately, after installation and verification. Do not
+simply forward to the challenged public HA host:
 that does not establish a working private path around Bot Fight Mode.
 
 ## Cost and deployment choice
@@ -40,10 +42,12 @@ ordinary Cloudflare Tunnel after an explicitly accepted zone-wide Bot Fight
 Mode disablement. Follow the
 [Plan B runbook](../../docs/google-linking-troubleshooting.md#plan-b-ordinary-cloudflare-tunnel-with-bot-fight-mode-disabled)
 if choosing that fallback; do not disable Bot Fight Mode while deploying this
-relay. Plan B restores only Google's token and fulfillment URLs, keeps browser
+relay. Plan B changes only Google's token and fulfillment URLs, keeps browser
 authorization and the client ID unchanged, and requires a fresh successful
 Google linking attempt before retiring the relay. Other WAF, Access, country
-or IP restrictions can still prevent linking.
+or IP restrictions can still prevent linking. If Home Channels is enabled,
+the direct fulfillment URL must use `/api/epg_voice/google_assistant` to retain
+that device; the stock path does not expose the extension.
 
 ## Relay contract
 
@@ -53,6 +57,12 @@ or IP restrictions can still prevent linking.
   `application/json` and the original Bearer Authorization header.
 - Keep original request bytes. Forward no cookies or caller-supplied forwarding
   headers. The binding, not request parameters, fixes the private destination.
+- With `CHANNELS_ENABLED` missing or set to the exact string `"false"`, forward
+  fulfillment to stock `/api/google_assistant`. Only the exact string `"true"`
+  selects fixed `/api/epg_voice/google_assistant` on the same private backend.
+  Reject any other configured value. This operator setting cannot be toggled
+  by request headers, body fields or query parameters; neither an arbitrary
+  upstream URL nor a configurable upstream path is supported.
 - Bound request bodies to 32 KiB, responses to 256 KiB, and the complete request
   to eight seconds. Do not follow redirects or fall back to public `fetch`.
 - Return accepted JSON responses with their upstream status. Preserve an
@@ -114,12 +124,39 @@ applying the plan. Keep `publish=false` for the initial installation and verify
 the resulting namespace, exact VPC target and binding. Then review a second
 plan with `publish=true` and apply it when publication is authorized. The module
 does not enable a paid plan. It must not modify existing Workers or zone rules.
+`channels_enabled` defaults to `false`; leave it that way for stock HA. Terraform
+renders it as the string-valued `CHANNELS_ENABLED` Worker binding.
 
 For Wrangler, create the single private HTTP VPC Service first, copy
 [`wrangler.example.jsonc`](wrangler.example.jsonc) to a private working copy next
 to the relay, and fill in the exact public host and service ID. Keep
 `workers_dev=false` until the configuration is reviewed. Use `wrangler deploy
 --dry-run` before publishing. Do not manage the same Worker with both tools.
+The example's `CHANNELS_ENABLED` is the string `"false"`, not a JSON boolean.
+
+## Optional channel fulfillment
+
+For the additional Home Channels device, follow the
+[channel setup guide](../../docs/google-channels.md). Install and configure the
+authenticated HA extension first, then verify its authenticated SYNC behavior
+at `/api/epg_voice/google_assistant` on the existing private backend. Confirm
+that an invalid Bearer token is rejected. An invalid-token rejection alone
+does not prove that the component loaded or that its device is discoverable.
+
+Only after that verification, set `channels_enabled = true` in the protected
+Terraform variables, or `CHANNELS_ENABLED` to the string `"true"` in the private
+Wrangler configuration. Use the established resource owner and review the
+update. This changes one fixed private fulfillment target and its operator
+binding; it requires no broader VPC service, tunnel route, WAF rule or billing
+change. Keep the existing state and prior Worker version for rollback.
+
+The public `POST /api/google_assistant` and `POST /auth/token` URLs remain
+unchanged. Browser authorization and HA OAuth remain unchanged, and the Worker
+still rejects direct public requests to `/api/epg_voice/google_assistant`.
+Existing Google links do not need to be recreated merely for this option.
+Request a device sync for the linked user, then verify Google's stored Home
+Channels inventory and physical voice/playback separately. To restore stock
+fulfillment, set the option back to `false` and sync again.
 
 ## Verify before changing Google Console
 
@@ -149,6 +186,10 @@ and verify real Google token exchange and SYNC before disabling the relay's
 public address with `publish=false` or `workers_dev=false`. Keep the established
 resource owner. Delete the dedicated VPC Service only after its Worker no
 longer uses it; preserve the shared tunnel and HA configuration.
+For Home Channels, preserve the installed extension and use its
+`/api/epg_voice/google_assistant` fulfillment path on the direct HTTPS origin;
+otherwise use stock `/api/google_assistant`. The token path remains
+`/auth/token`, and the browser authorization URL stays unchanged.
 
 If simply abandoning an unaccepted deployment, restore the recorded Console
 URLs and disable the relay through that same owner. A prior URL still

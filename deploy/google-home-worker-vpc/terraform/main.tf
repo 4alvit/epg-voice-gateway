@@ -71,6 +71,11 @@ resource "cloudflare_worker_version" "google" {
       type = "plain_text"
       text = local.worker_hostname
     },
+    {
+      name = "CHANNELS_ENABLED"
+      type = "plain_text"
+      text = tostring(var.channels_enabled)
+    },
   ]
 
   lifecycle {

@@ -7,7 +7,8 @@
   "preview_urls": false,
   "observability": { "enabled": false },
   "vars": {
-    "PUBLIC_HOST": "home-media-google.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev"
+    "PUBLIC_HOST": "home-media-google.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+    "CHANNELS_ENABLED": "false"
   },
   "vpc_services": [
     { "binding": "BACKEND", "service_id": "REPLACE_WITH_EXACT_HA_VPC_SERVICE_ID" }

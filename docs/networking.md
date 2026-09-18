@@ -39,9 +39,11 @@ Assistant instance can call the internal Kubernetes/LAN endpoint instead of
 using a public control route. A Cloudflare account, Worker, paid plan, or new
 subscription is not required by the application itself.
 
-The authenticated `GET /v1/catalogue` used by Home TV stays on that internal
-route. The supplied public ingress/tunnel allowlists intentionally omit it.
-Configure HA's catalogue URL with the LAN origin, not the public control host.
+The authenticated `GET /v1/catalogue` used by Home TV and `GET /v1/channels`
+used by the optional Home Channels extension stay on that internal route.
+The supplied public ingress/tunnel allowlists intentionally omit them.
+Configure HA's catalogue connection with the LAN origin, not the public control
+host.
 
 Google's OAuth exchange and fulfillment also need a route without browser bot
 challenges. A successful HA login from home does not validate these server calls.
@@ -103,6 +105,13 @@ and plays any offered choice. Fixed shortcuts remain available through exposed
 HA scripts and optional Google Home Routines, with predefined programme queries
 or catalogue channels and a fixed display.
 The HA dispatcher calls the gateway over the LAN, then starts Cast locally.
+The optional [Home Channels extension](google-channels.md) adds named channel
+selection through a separate authenticated HA fulfillment wrapper. With the
+Worker relay, explicitly enable `channels_enabled` only after installing and
+verifying that wrapper. The public fulfillment path and OAuth endpoints stay
+unchanged; the private route selects the wrapper, which delegates existing
+devices to HA's Google integration. With a direct HTTPS origin, configure the
+wrapper's documented fulfillment path instead. Media keeps its separate route.
 Only Google's HA account-linking and fulfillment paths need a reachable
 control endpoint for the manual Google integration; the gateway control API
 can remain private. This is not a general Google

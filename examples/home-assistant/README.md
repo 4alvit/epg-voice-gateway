@@ -72,6 +72,13 @@ a wrapper and Routine; the dynamic selector below uses one shared handler.
 This setup does not use retired Google
 Conversational Actions or require Gemini.
 
+To select a channel by its published name, install the separate
+[Home Channels extension](../../docs/google-channels.md). It adds a virtual TV
+with Google's Channel trait through an authenticated HA fulfillment wrapper.
+The existing package continues to provide its scenes and programme selector.
+The extension has its own explicit channel allowlist; it does not publish every
+playlist channel automatically or require a scene for every channel.
+
 ## Dynamic current-programme selector
 
 The package also provides **Home TV**, an `input_select` whose options come from

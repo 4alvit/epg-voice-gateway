@@ -356,9 +356,10 @@ def test_expired_catalogue_keeps_service_and_existing_media_available():
                     response = client.post(path, headers=AUTH, json=payload)
                     assert response.status_code == 503
                     assert response.json() == {"error": "catalog_unavailable"}
-                response = client.get("/v1/catalogue", headers=AUTH)
-                assert response.status_code == 503
-                assert response.json() == {"error": "catalog_unavailable"}
+                for path in ("/v1/catalogue", "/v1/channels"):
+                    response = client.get(path, headers=AUTH)
+                    assert response.status_code == 503
+                    assert response.json() == {"error": "catalog_unavailable"}
                 create.assert_not_called()
 
             media = client.get(media_path)

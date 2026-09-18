@@ -85,6 +85,11 @@ words and honours XMLTV timezone offsets and playlist `tvg-shift` values.
   `{ "options": [{ "label": "Columbo", "query": "Columbo", "channel_id": "<channel ID>" }], "revision": "<SHA-256>" }`.
   Options describe currently airing titles; no playback URLs are included.
   The revision changes only when the ordered options change.
+- `GET /v1/channels`: uses the same bearer authorization and returns
+  `{ "channels": [{ "channel_id": "<channel ID>", "name": "News Channel", "synonyms": [], "available": true }], "revision": "<SHA-256>" }`.
+  It publishes only the explicit channel voice lineup, with current EPG
+  availability. It includes no stream URLs, programme titles or provider IDs.
+  Keep this endpoint on the internal HA-to-gateway route.
 - `POST /v1/play`: `{ "query": "Kukutiki", "target": "kitchen" }`.
   Creates a session and asks Home Assistant to cast it to a configured target.
   Omit `target` to obtain a playback URL without starting a device.
@@ -113,6 +118,15 @@ verified channel IDs; an empty list permits every mapped channel.
 `EPG_VOICE_PREFERRED_QUERIES` prioritizes up to 50 spoken labels, using
 `EPG_TITLE_ALIASES` to find their currently airing EPG titles. A preference
 does not create an option when its programme is off air.
+
+Named channel selection has a separate explicit allowlist,
+`EPG_CHANNEL_VOICE_IDS`. Its default empty list publishes no channels.
+`EPG_CHANNEL_VOICE_LIMIT` defaults to 30 and accepts 1–200. Entries keep their
+configured order and remain in the lineup during guide gaps with
+`available: false`; they cannot start playback without one current programme.
+Channel names and synonyms are bounded and ambiguous names are excluded.
+The revision is independent of programme titles. The list contains no invented
+channel numbers. See [Google channel selection](docs/google-channels.md).
 
 Catalogue reads use the SQLite current-time index and consider at most 2,000
 current rows, ordered by configured channel priority, then channel name and ID.
@@ -166,6 +180,14 @@ a Google Home Routine can give it a shorter phrase. Cast support alone does not
 establish voice control. The retired Conversational Actions platform is not
 used. A Nest Hub or compatible Cast screen is required to show video.
 
+For channel names, the optional [Home Channels integration](docs/google-channels.md)
+adds a separate virtual TV using Google's Channel trait. Its authenticated HA
+fulfillment wrapper preserves the existing scenes and Home TV, advertises the
+configured channel lineup only to the dedicated account, and revalidates the
+selected channel before requesting a fresh signed stream. It requires installing
+the supplied HA custom integration and selecting the extended fulfillment route;
+the base package alone does not enable named channel commands.
+
 ## Deployment and verification
 
 - [Ordered setup checklist, from deployment to voice playback](docs/setup-checklist.md)
@@ -173,6 +195,7 @@ used. A Nest Hub or compatible Cast screen is required to show video.
 - [Control and media networking](docs/networking.md)
 - [Acceptance checks and physical-device limits](docs/acceptance.md)
 - [Google linking failures and the optional private relay](docs/google-linking-troubleshooting.md)
+- [Named Google channel selection and installation](docs/google-channels.md)
 - [Recorded validation and remaining gates](docs/validation-2026-09-18.md)
 
 ```sh

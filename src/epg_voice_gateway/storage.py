@@ -14,6 +14,7 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .channel_catalogue import MAX_CHANNEL_VOICE_IDS, ChannelCandidate
 from .errors import CatalogUnavailable
 from .models import Channel, ProgramMatch
 from .search import normalize
@@ -388,6 +389,54 @@ class CatalogStore:
                 ) for row in rows]
             except (sqlite3.Error, ValueError, OverflowError):
                 raise CatalogStorageError("The voice catalogue could not be read") from None
+
+    def channel_candidates(
+        self, instant: datetime, channel_ids: list[str],
+    ) -> list[ChannelCandidate]:
+        """Read only an explicit lineup and at most two current rows per channel.
+
+        The primary key bounds channel reads to 200 configured IDs; the existing
+        channel/time index bounds each current-count probe. No stream URL,
+        provider EPG ID, programme title, or source metadata is selected.
+        An empty allowlist deliberately publishes no channels.
+        """
+        if (
+            not isinstance(channel_ids, list) or len(channel_ids) > MAX_CHANNEL_VOICE_IDS
+            or any(not isinstance(value, str) or not value for value in channel_ids)
+        ):
+            raise CatalogStorageError("Invalid channel voice request")
+        try:
+            timestamp = _timestamp(instant)
+        except (TypeError, AttributeError, ValueError, OverflowError):
+            raise CatalogStorageError("Invalid channel catalogue request") from None
+        channel_ids = list(dict.fromkeys(channel_ids))
+        with self._lock:
+            try:
+                connection = self._open_connection()
+                if not channel_ids:
+                    return []
+                placeholders = ",".join("?" for _ in channel_ids)
+                priority = " ".join(
+                    "WHEN ? THEN " + str(index) for index, _ in enumerate(channel_ids)
+                )
+                rows = connection.execute(f"""
+                    SELECT c.channel_id, c.name, c.epg_name, (
+                        SELECT COUNT(*) FROM (
+                            SELECT 1 FROM programmes AS p INDEXED BY programmes_channel_time
+                            WHERE p.channel_id = c.channel_id
+                                AND p.starts_at <= ? AND p.ends_at > ?
+                            LIMIT 2
+                        )
+                    ) AS current_count
+                    FROM channels AS c
+                    WHERE c.channel_id IN ({placeholders})
+                    ORDER BY CASE c.channel_id {priority} END
+                """, (timestamp, timestamp, *channel_ids, *channel_ids)).fetchall()
+                return [ChannelCandidate(
+                    row["channel_id"], row["name"], row["epg_name"], row["current_count"] == 1,
+                ) for row in rows]
+            except (sqlite3.Error, ValueError, OverflowError):
+                raise CatalogStorageError("The channel catalogue could not be read") from None
 
     def current_on_channel(self, channel_id: str, instant: datetime) -> list[ProgramMatch]:
         """Read at most twenty current programmes through the channel/time index.

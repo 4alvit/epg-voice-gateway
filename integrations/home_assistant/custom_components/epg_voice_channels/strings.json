@@ -1,0 +1,39 @@
+{
+  "title": "EPG Voice Channels",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Channels",
+        "description": "Use an existing Google Assistant configuration and a dedicated non-admin user with control permission for the display. The gateway token is stored privately in Home Assistant.",
+        "data": {
+          "gateway_origin": "Gateway origin (HTTP or HTTPS)",
+          "gateway_token": "Gateway API token",
+          "signed_media_origin": "Signed media origin (HTTPS)",
+          "google_entry_id": "Existing Google Assistant integration",
+          "agent_user_id": "Dedicated Google agent user",
+          "target_entity": "Playback display"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Home Channels",
+        "description": "Enter the complete configuration. Saved secrets are not shown.",
+        "data": {
+          "gateway_origin": "Gateway origin (HTTP or HTTPS)",
+          "gateway_token": "Gateway API token",
+          "signed_media_origin": "Signed media origin (HTTPS)",
+          "google_entry_id": "Existing Google Assistant integration",
+          "agent_user_id": "Dedicated Google agent user",
+          "target_entity": "Playback display"
+        }
+      }
+    },
+    "error": {
+      "invalid_configuration": "Check the origins, dedicated user's permissions and available media player.",
+      "cannot_connect": "The existing Google integration or fresh gateway channel catalogue is unavailable."
+    },
+    "abort": {
+      "single_instance_allowed": "Only one Home Channels adapter is supported.",
+      "reconfigure_successful": "Configuration updated."
+    }
+  }
+}

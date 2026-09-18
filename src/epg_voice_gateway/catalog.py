@@ -16,6 +16,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from defusedxml.ElementTree import iterparse
 
+from .channel_catalogue import build_channel_catalogue
 from .config import Settings
 from .errors import CatalogUnavailable, InvalidSource
 from .models import Channel, ProgramMatch, Programme
@@ -353,6 +354,19 @@ class Catalog:
             candidates, self.settings.voice_preferred_queries, self.settings.title_aliases,
             self.settings.voice_catalogue_limit,
         )
+
+    async def channel_catalogue(self, *, now: datetime | None = None) -> dict:
+        """Return the explicit channel lineup with fresh current EPG availability."""
+        if not self.ready:
+            raise CatalogUnavailable()
+        try:
+            candidates = await asyncio.to_thread(
+                self.store.channel_candidates, now or datetime.now(UTC),
+                self.settings.channel_voice_ids,
+            )
+        except CatalogStorageError:
+            raise CatalogUnavailable() from None
+        return build_channel_catalogue(candidates, self.settings.channel_voice_limit)
 
     async def current_on_channel(self, channel_id: str, *, now: datetime | None = None) -> list[ProgramMatch]:
         """Resolve a saved channel against the fresh catalogue's current schedule."""

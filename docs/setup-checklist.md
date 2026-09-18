@@ -28,7 +28,8 @@ operator-supplied dependencies.
    resource chain, reachable from the actual receiver. Google Cast can use a
    verified LAN media route; Alexa requires a separately tested public route.
    Keep video outside Cloudflare's proxy/tunnel path. Keep HA-to-gateway control
-   calls, including `/v1/catalogue`, internal. See [networking](networking.md).
+   calls, including `/v1/catalogue` and `/v1/channels`, internal. See
+   [networking](networking.md).
 5. **Install the HA package.** Configure the fixed receiver, bearer credential,
    internal API URLs and optional news-channel ID. Merge package and logging
    settings without replacing unrelated configuration. Back up, validate with
@@ -39,6 +40,11 @@ operator-supplied dependencies.
    aliases and catalogue limit. Confirm that Home TV refreshes without playing,
    a selection resolves the exact current title/channel, and it resets to Ready.
    See [dynamic selection](../examples/home-assistant/README.md#dynamic-current-programme-selector).
+   For named channels, separately configure `EPG_CHANNEL_VOICE_IDS` and install
+   the optional [Home Channels extension](google-channels.md). Verify its scoped
+   authenticated endpoint before selecting it as Google's fulfillment route;
+   keep the existing OAuth configuration. Include TV among the draft's device
+   types for this extension. This does not replace the programme selector.
 7. **Create the Google draft.** Accept the developer terms, select Scene/Sensor,
    upload the generic icon, and configure the documented OAuth URLs, scopes,
    client ID and fulfillment URL. Use the public HA origin for browser
