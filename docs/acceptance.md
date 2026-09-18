@@ -40,6 +40,14 @@ Verify the trusted certificate and both advertised IP families. Successful
 HTTPS transport does not establish that the device supports the video's codecs,
 audio format, resolution, encryption, or live-stream behavior.
 
+Run transport probes before the continuous playback test, not against a second
+channel while the display is playing. A proxy or provider may allow only one
+simultaneous stream per client, and gateway fetches can share that upstream
+client identity. A diagnostic request for another channel can then invalidate
+the display's active stream. Inspect the configured limit and proxy lifecycle
+errors before attributing the resulting player error to a codec. Do not raise
+the limit without confirming the provider's concurrency allowance.
+
 ## Alexa acceptance
 
 Follow the [Alexa setup example](../examples/alexa/README.md) to import the
@@ -60,17 +68,31 @@ the target device is the final platform gate.
 ## Google acceptance
 
 Follow the [Home Assistant example](../examples/home-assistant/README.md) to
-configure the authenticated script and expose the intended Routine.
+configure the authenticated dispatcher, Home TV selector, and optional fixed
+shortcuts.
 
 First use Home Assistant to play the gateway-issued media URL on the intended
 Cast display. Then test the complete Routine -> exposed Home Assistant script
 -> gateway lookup -> Cast playback sequence. Check the EPG again when repeating
 the command so a previous session or channel is not mistaken for fresh lookup.
 
-The initial Routine has a predefined title and target; it does not extract an
-unrestricted program-name variable from speech. Test each configured Routine
-and display mapping. A successful Home Assistant service call is not playback
-proof: verify moving video and sound on the device.
+For the dynamic catalogue, verify that Google SYNC advertises exactly the
+intended devices and that Home TV's Modes options match the current HA list.
+Verify QUERY returns Ready after a selection. A synthetic SetModes request
+tests the fulfillment and HA event path; it does not test real Google account
+linking or speech recognition. After linking the household account, sync devices
+and speak a command naming a currently listed option. Repeat that same choice
+to check that it starts a fresh session rather than being ignored.
+
+The fixed Routines have predefined inputs; the dynamic selector advertises a
+finite list. Neither route extracts an unrestricted programme-name variable
+from speech. Check the actual display mapping and account language.
+
+Observe an isolated stream for at least two minutes after it starts. Require
+PLAYING at the end, an advancing timeline, and no terminal ERROR after startup;
+an earlier PLAYING sample followed by a failure is not sustained acceptance.
+A successful Home Assistant service call or native Cast status alone is not
+physical picture/audio proof: verify moving video and sound on the device.
 
 ## Common failure boundaries
 
@@ -88,6 +110,9 @@ proof: verify moving video and sound on the device.
   HTTPS does not make its remaining HTTP references compatible.
 - **Stream stops after a rollout or expiry:** request playback again. The current
   implementation deliberately does not persist or indefinitely renew sessions.
+- **Stream stops when another channel is probed:** check proxy/provider limits
+  per client and stream eviction logs. Repeat with one isolated stream and no
+  parallel channel probes before changing media or decoder configuration.
 - **No matching program:** verify the provider's XMLTV channel IDs and times.
   Add explicit title aliases for recognizer spellings; do not silently choose an
   unrelated channel.
