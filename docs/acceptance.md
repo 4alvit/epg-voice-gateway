@@ -1,0 +1,101 @@
+# Acceptance and troubleshooting
+
+Validate each layer independently. Unit tests and generated directives cannot
+prove that a physical display can fetch, decode, and play a provider's video.
+Keep deployment receipts private and redact session URLs, provider references,
+skill/user IDs, domains, IP addresses, and tokens from shared evidence.
+
+## Application checks
+
+1. Verify `/healthz` and `/readyz` through a local port forward after deployment.
+2. Resolve a currently airing program using an authenticated control request.
+   Confirm the title, channel, and active interval against the configured EPG.
+3. Confirm unknown titles and programs that ended already do not start an
+   unrelated channel. Exercise a configured title alias.
+4. Confirm unauthenticated control calls are rejected. Confirm unsigned Alexa
+   requests and requests for a different skill are rejected.
+5. Confirm `/media/` is unavailable through the Cloudflare control hostname and
+   the media hostname does not expose control or administration paths.
+
+Never use provider credentials or raw stream URLs as test fixture data. Use
+synthetic channels in public tests. Perform live checks only against the
+operator-configured service and preserve only bounded, sanitized outcomes.
+
+## Media transport checks
+
+Create a fresh session through an authenticated play request. With a client on
+the same network as the intended device, fetch the returned HTTPS playlist and
+one bounded video segment. Inspect the rewritten playlist privately:
+
+- Every fetchable URI stays on the configured HTTPS media origin.
+- Nested playlists, keys, initialization segments, and media segments receive
+  session-authorized URLs.
+- Responses preserve the resource content type and range behavior required by
+  the selected stream.
+- A tampered, expired, or unknown grant cannot retrieve a resource.
+- Provider error pages, credentials, and upstream URLs are not exposed in errors.
+
+Repeat from outside the home network before describing a route as WAN-ready.
+Verify the trusted certificate and both advertised IP families. Successful
+HTTPS transport does not establish that the device supports the video's codecs,
+audio format, resolution, encryption, or live-stream behavior.
+
+## Alexa acceptance
+
+Follow the [Alexa setup example](../examples/alexa/README.md) to import the
+interaction model and configure the private skill.
+
+Enable Video App in the custom skill's interface settings and rebuild its
+interaction model. Use a device whose signed incoming request advertises
+`VideoApp`. Test the skill's invocation and program slot with a compatible
+SD/720p channel first. Verify visible moving video and audible sound, followed
+by pause/resume/stop behavior. Do not infer Samsung Family Hub video support
+from previously rendered Alexa energy cards.
+
+Record the model, locale, capability result, channel codec/resolution, start
+latency, playback duration, and observed result privately. A simulator-generated
+`VideoApp.Launch` directive is response-contract proof only. Actual playback on
+the target device is the final platform gate.
+
+## Google acceptance
+
+Follow the [Home Assistant example](../examples/home-assistant/README.md) to
+configure the authenticated script and expose the intended Routine.
+
+First use Home Assistant to play the gateway-issued media URL on the intended
+Cast display. Then test the complete Routine -> exposed Home Assistant script
+-> gateway lookup -> Cast playback sequence. Check the EPG again when repeating
+the command so a previous session or channel is not mistaken for fresh lookup.
+
+The initial Routine has a predefined title and target; it does not extract an
+unrestricted program-name variable from speech. Test each configured Routine
+and display mapping. A successful Home Assistant service call is not playback
+proof: verify moving video and sound on the device.
+
+## Common failure boundaries
+
+- **Not ready:** inspect catalog/EPG refresh success, configured IDs, clock, feed
+  reachability, and staleness thresholds. Do not disable freshness checks to
+  hide a feed problem.
+- **Alexa HTTP 403:** separate edge rejection from application signature or
+  skill-ID validation. A successful browser GET does not prove signed Amazon
+  POST requests can reach the handler.
+- **Media HTTP 401/403/404:** use a newly issued grant and check the media origin,
+  path rules, expiration, and whether the pod restarted. Session storage is
+  process-local.
+- **Playlist loads but video fails:** check every nested resource, trusted TLS,
+  device DNS, range requests, encryption, and codecs. Wrapping a manifest in
+  HTTPS does not make its remaining HTTP references compatible.
+- **Stream stops after a rollout or expiry:** request playback again. The current
+  implementation deliberately does not persist or indefinitely renew sessions.
+- **No matching program:** verify the provider's XMLTV channel IDs and times.
+  Add explicit title aliases for recognizer spellings; do not silently choose an
+  unrelated channel.
+
+## Evidence levels
+
+A useful release receipt distinguishes source/test success, installed image,
+readiness and live EPG lookup, signed media transport, assistant response
+contract, and physical device playback. List unperformed checks explicitly.
+Neither a Ready pod nor an HTTPS playlist alone justifies claiming that the
+Alexa or Google experience is complete.

@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: epg-voice-gateway
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: epg-voice-gateway-data
+  namespace: epg-voice-gateway
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  # Use the cluster's default StorageClass unless the operator selects another.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epg-voice-gateway
+  namespace: epg-voice-gateway
+  labels:
+    app: epg-voice-gateway
+spec:
+  # Sessions are process-local. Multiple replicas or workers need shared storage.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: epg-voice-gateway
+  template:
+    metadata:
+      labels:
+        app: epg-voice-gateway
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          # Replace with a built image, preferably pinned by digest.
+          image: example.invalid/epg-voice-gateway:replace-with-reviewed-tag
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: epg-voice-gateway-env
+          env:
+            - name: EPG_DATABASE_PATH
+              value: /data/catalog.sqlite3
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: epg-voice-gateway-data
+        - name: temporary
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: epg-voice-gateway
+  namespace: epg-voice-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: epg-voice-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

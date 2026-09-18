@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: epg-voice-media
+  namespace: epg-voice-gateway
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  # Use DNS-only records. Do not send this hostname through Cloudflare Tunnel.
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - media.example.invalid
+      secretName: media-example-tls
+  rules:
+    - host: media.example.invalid
+      http:
+        paths:
+          # Only session-authorized gateway resources are exposed here.
+          # Do not route directly to the external HLS proxy's generic URL handler.
+          - path: /media/
+            pathType: Prefix
+            backend:
+              service:
+                name: epg-voice-gateway
+                port:
+                  name: http

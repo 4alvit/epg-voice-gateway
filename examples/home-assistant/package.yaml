@@ -1,0 +1,29 @@
+# Load this file through Home Assistant packages after filling in secrets.
+# Configure the "kitchen" target alias in the gateway before using the script.
+rest_command:
+  epg_voice_play:
+    url: !secret epg_voice_gateway_play_url
+    method: POST
+    headers:
+      Authorization: !secret epg_voice_gateway_authorization
+    content_type: application/json
+    payload: '{{ {"query": query, "target": target} | to_json }}'
+    timeout: 15
+
+script:
+  play_kukutiki:
+    alias: Play Kukutiki
+    description: Find a currently airing program and play it on the kitchen display.
+    mode: single
+    sequence:
+      - action: rest_command.epg_voice_play
+        data:
+          query: Kukutiki
+          target: kitchen
+        response_variable: gateway_response
+      - if:
+          - condition: template
+            value_template: "{{ gateway_response.status != 200 }}"
+        then:
+          - stop: The video gateway could not start playback.
+            error: true

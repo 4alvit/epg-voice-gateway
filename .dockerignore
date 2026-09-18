@@ -1,0 +1,9 @@
+*
+!Dockerfile
+!pyproject.toml
+!README.md
+!requirements.lock
+!src/
+!src/**
+src/**/__pycache__/
+src/**/*.pyc

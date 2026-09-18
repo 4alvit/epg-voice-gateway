@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: epg-voice-control
+  namespace: epg-voice-gateway
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  # Replace with the existing ingress class and certificate Secret in this namespace.
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - voice.example.invalid
+      secretName: voice-example-tls
+  rules:
+    - host: voice.example.invalid
+      http:
+        paths:
+          - path: /alexa
+            pathType: Exact
+            backend:
+              service:
+                name: epg-voice-gateway
+                port:
+                  name: http
+          - path: /v1/resolve
+            pathType: Exact
+            backend:
+              service:
+                name: epg-voice-gateway
+                port:
+                  name: http
+          - path: /v1/play
+            pathType: Exact
+            backend:
+              service:
+                name: epg-voice-gateway
+                port:
+                  name: http

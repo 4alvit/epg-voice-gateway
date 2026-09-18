@@ -1,0 +1,104 @@
+# Control and media networking
+
+Voice commands and video take different routes. The same gateway process
+handles both, but the ingress hosts and allowed paths keep them separate.
+
+```text
+Alexa or Home Assistant
+  -> control HTTPS endpoint (Cloudflare may carry this traffic)
+  -> gateway: search current EPG and authorize playback
+
+Playback device
+  -> media HTTPS endpoint (direct LAN or WAN; DNS-only if using Cloudflare DNS)
+  -> gateway: validate the playback session and rewrite HLS references
+  -> existing internal HLS proxy
+  -> upstream provider
+```
+
+The gateway is a thin authorization and URL-rewriting layer in front of the
+existing HLS service. HLS caching and provider integration stay in that service.
+There is no transcoder or second installation of the HLS proxy in this project.
+
+## Control endpoint
+
+Use either the separate Traefik control ingress example or the hostname/path
+rules in `deploy/cloudflared-control.example.yaml` with an existing tunnel.
+Allow only `/alexa`, `/v1/resolve`, and `/v1/play`. If a tunnel targets the gateway
+Service directly, it bypasses Traefik's path restrictions; retain the example's
+explicit path allowlist and same-host 404 fallback. Never create a catch-all
+control-host route to the entire gateway application.
+
+Amazon requests are authenticated by signature verification and the configured
+skill ID. A Cloudflare Access login page or challenge in front of `/alexa`
+prevents Amazon from using the skill. An IP-restricted home-only rule also blocks
+Amazon servers. Preserve the application's request verification even when an
+edge rule has to change. Do not weaken protections for unrelated hostnames.
+
+`/v1/resolve` and `/v1/play` require the gateway's bearer API token. A local Home
+Assistant instance can call the internal Kubernetes/LAN endpoint instead of
+using a public control route. A Cloudflare account, Worker, paid plan, or new
+subscription is not required by the application itself.
+
+## Media endpoint
+
+Set `EPG_MEDIA_BASE_URL` to the media hostname and route only `/media/` to the
+gateway. Use a certificate trusted by the playback device. All HLS resource
+types, including nested manifests, segments, encryption keys, and initialization
+segments, must stay behind session authorization. Do not redirect devices to
+the raw provider URL or expose a generic URL-fetching proxy.
+
+The existing HLS proxy may retain its own LAN HTTPS endpoint for other clients.
+It is a different route from the voice gateway's authorized media endpoint.
+Existing proxy query values are not a substitute for the gateway's expiring
+session grants. This project does not make the existing HLS service public.
+
+When using Cloudflare DNS, use a **DNS-only** media record. Keep media outside
+Cloudflare Tunnel, Workers, and the proxied CDN path. Cloudflare documents
+restrictions for video and large-file delivery through Tunnel; this design
+does not depend on a paid streaming product or a beta feature.
+
+Two network modes are possible:
+
+- **LAN-only:** media DNS resolves to a reachable private address. This can serve
+  local Cast devices after actual reachability and codec verification. It does
+  not establish Internet reachability for the Alexa VideoApp acceptance test.
+- **Direct WAN:** the media hostname resolves to your direct IPv4 and/or IPv6
+  address. Forward TCP 443 for IPv4 where needed, or allow TCP 443 to the selected
+  host in the IPv6 firewall. Expose only the media ingress, not HLS administration,
+  the Kubernetes API, or a general Traefik dashboard.
+
+An IPv6 prefix alone does not prove end-to-end IPv6 playback support. Test the
+actual device and the external requester. If a hostname advertises both A and
+AAAA records, both routes need working TLS and routing; a broken advertised
+address can cause intermittent failures. Some Cast devices use their own DNS
+resolvers, so do not rely on a local `.local` hostname or a laptop-only DNS
+override. Split DNS and NAT loopback behavior also need device testing.
+
+The examples do not modify router rules, IPv6 firewall rules, DNS records,
+certificates, Cloudflare plans, or existing tunnels automatically.
+
+## Platform constraints
+
+Alexa must advertise the `VideoApp` interface in the incoming request before
+the skill can return `VideoApp.Launch`. A screen and working APL cards do not
+prove support for this separate interface. Amazon documents HTTPS HLS with
+MPEG-TS/AAC, MPEG4 or H.264 video, and a maximum resolution of 1280x720 for this
+interface. A 4K channel needs a compatible existing rendition or a separate
+transcoding service; this gateway does not resize video.
+
+Google playback uses Home Assistant and Cast. The supported initial voice path
+is a configured Google Home Routine activating an exposed Home Assistant script
+with a predefined program query and target. This is not a general Google
+conversational endpoint accepting an arbitrary spoken program title. Google's
+Conversational Actions were discontinued; exposing an HTTPS API alone does not
+restore that feature. A Google Home speaker without a screen must target a
+separate display or TV for video.
+
+## References
+
+- [Amazon VideoApp interface](https://developer.amazon.com/en-US/docs/alexa/custom-skills/videoapp-interface-reference.html)
+- [Google Cast supported media](https://developers.google.com/cast/docs/media)
+- [Home Assistant Cast integration](https://www.home-assistant.io/integrations/cast/)
+- [Home Assistant Google Assistant integration](https://www.home-assistant.io/integrations/google_assistant/)
+- [Google Conversational Actions sunset](https://developers.google.com/assistant/ca-sunset)
+- [Cloudflare Tunnel streaming restrictions](https://developers.cloudflare.com/cloudflare-one/faq/cloudflare-tunnels-faq/#large-file-and-streaming-traffic-through-tunnel)

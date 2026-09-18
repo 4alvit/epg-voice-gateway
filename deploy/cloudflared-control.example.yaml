@@ -1,0 +1,13 @@
+# Merge only these hostname/path rules into your existing tunnel configuration.
+# They do not install a tunnel or provision a Cloudflare account.
+# Put the final catch-all rule after all other existing tunnel rules.
+ingress:
+  - hostname: voice.example.invalid
+    path: ^/alexa$
+    service: http://epg-voice-gateway.epg-voice-gateway.svc.cluster.local:8080
+  - hostname: voice.example.invalid
+    path: ^/v1/(resolve|play)$
+    service: http://epg-voice-gateway.epg-voice-gateway.svc.cluster.local:8080
+  - hostname: voice.example.invalid
+    service: http_status:404
+  - service: http_status:404
