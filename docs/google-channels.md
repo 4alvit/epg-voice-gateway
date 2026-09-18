@@ -178,6 +178,11 @@ After sync, check that Google sees **Home Channels** as
 expected finite `availableChannels` list. The device is command-only and does
 not report which channel the physical screen is playing.
 
+In the existing Google Console integration, add **TV** to its device types,
+preserving Scene, Sensor, or other types already in use. Keep the existing
+account-linking fields and test account. Verify the saved selection and
+HomeGraph inventory after RequestSync.
+
 For a configured channel whose published name is `Example News`, try:
 
 - “Hey Google, change the channel to Example News on Home Channels.”
@@ -203,6 +208,13 @@ A dispatch timeout can occur after the receiver accepted the command, so
 check the screen before repeating it. If Google still says it is
 “activating” an old news shortcut, distinguish that stock script from a
 Channel request to Home Channels.
+
+Overlapping channel changes return `deviceBusy` instead of allowing an older
+request to overtake a newer one. Completed request IDs are deduplicated for
+two minutes, up to 128 entries, so a transport retry does not restart playback.
+Repeating the spoken phrase normally creates a new request and can start a new
+session. Unlinking the registered Google agent prevents further custom
+playback even if an HA access token has not yet expired.
 
 Start with an SD or 720p H.264/AAC stream already tested on the display. HLS,
 codec profile, resolution, audio, TLS, and network support depend on the

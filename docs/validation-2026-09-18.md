@@ -141,13 +141,75 @@ A separate 125-second SD software-decode check passed. It does not establish
 receiver hardware decoding or human picture/audio acceptance. An EPG-origin DNS
 timeout was also observed; freshness enforcement remained enabled.
 
+## Named channel selection
+
+The optional Home Channels extension from `f54ead8` was installed later on
+the same day. Its authenticated channel catalogue is a separate explicit
+allowlist; the existing programme selector and fixed shortcuts were preserved.
+The first advertised lineup contains one previously verified SD channel.
+
+- Application tests: 417 passed, one optional test skipped. The 72 HA adapter
+  tests are included in that total. Relay tests: 106 passed. Ruff, Terraform
+  validation and CI passed.
+- The installed gateway image and module hashes matched the committed source.
+  The rollout changed only its image and the new channel allowlist. The
+  database inode, source fingerprint, integrity, Service, persistent volume,
+  HLS proxy deployment and proxy pods were preserved. Both health checks and
+  the authenticated channel catalogue passed; missing authentication returned
+  401.
+- The eight HA component files matched the same source revision. Installed HA
+  2026.9.1 configuration checking reported zero errors, and integration imports
+  passed. A protected backup preceded installation. First discovery required a
+  normal HA restart during an idle window; the existing Cast receiver recovered
+  after startup. The entry was created through HA's configuration flow, without
+  hand-editing config storage. A separate read confirmed its persisted settings
+  and the loaded Cast, Google Assistant and channel adapter entries.
+- Private authenticated SYNC retained all three stock devices and added one
+  TV with the Channel trait for the designated non-admin user. An administrator
+  did not receive that virtual device; unauthenticated requests and unknown
+  channel selections were rejected.
+- The existing Worker owner deployed the reviewed routing flag. Its active
+  source and bindings matched the candidate. Public hostname, OAuth endpoints,
+  private origin, tunnel, logging settings and the entire Bot Fight Mode
+  settings object were unchanged. The prior immutable version remained
+  available for rollback. No paid service was enabled.
+- Google Console retained Scene and Sensor and added TV. Authenticated SYNC
+  through the public relay returned four devices. After RequestSync, an
+  independent HomeGraph inventory read returned 200 and confirmed the linked
+  agent, the three prior devices, and Home Channels with its expected named
+  channel list. A public mixed QUERY returned both Home TV and Home Channels
+  online while preserving Home TV's stock Modes state.
+
+The default Python urllib client received an edge 1010 response during an
+operator probe. The same authenticated request using an honest application
+User-Agent succeeded; curl negative probes also returned the expected JSON
+responses. The independent Google inventory check passed. No security setting
+was changed to accommodate that operator client.
+
+A single manual `selectChannel` request through the public Worker returned HTTP
+200 and Google protocol SUCCESS in 2.623 seconds. It used a temporary,
+normally authenticated session for the dedicated HA user and the advertised
+channel key/name. It did not call the gateway or HA playback service directly.
+The receiver reached PLAYING with a fresh signed session and remained on that
+session for 151.424 seconds without a relaunch or playback loss. One final
+passive native snapshot confirmed PLAYING and 154.804 seconds of timeline
+advancement. No native connection was opened during the observation interval;
+the final observer blocked control messages. The receiver was left playing.
+
+This is manual protocol and receiver evidence, not recognition of a
+named-channel microphone command or human picture/audio confirmation for the
+new path. Those checks remain pending. See
+[channel setup and usage](google-channels.md) for the separate checks and
+rollback procedure.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed
 news voice shortcut have passed their recorded checks. Google Home phone UI
 visibility, continued scheduled resynchronization as programmes change, dynamic
 catalogue speech recognition and repeated dynamic programme selection remain
-open. HD compatibility and longer source stability also remain open. Alexa
+open. The named-channel microphone and physical playback checks are recorded
+separately above. HD compatibility and longer source stability also remain open. Alexa
 physical playback was not established by these Google/Cast checks. No public
 integration release or PR merge occurred.
 
