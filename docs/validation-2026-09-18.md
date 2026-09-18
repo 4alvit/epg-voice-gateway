@@ -396,6 +396,81 @@ fallback would be a separate implementation requiring the target's explicit
 video capabilities and a physical playback test; it is not installed or
 validated by this result.
 
+## Experimental APL fallback and REN channel publication
+
+The later `c07693f` rollout adds a capability-gated APL Video fallback while
+preserving VideoApp priority. It requires APL runtime 1.8 or newer and an
+advertised H.264 viewport codec. It provides touch and voice controls, scoped
+presentation tokens and fixed playback-error text. Verified touch events only
+acknowledge controls already applied locally; voice intents issue commands for
+the owned current document. Runtime-error notifications receive no speech or
+playback directives. The supplied deployment remains single-worker; reopening
+the skill after restart is required for active APL documents.
+
+The media skill's APL interface was enabled alongside VideoApp, all offered
+screen profiles were enabled, and Pause/Resume intents were added. The open
+SearchQuery slot, carrier phrases, invocation name and HTTPS endpoint were
+preserved. Amazon model build version 4 succeeded. A signed Manual JSON CNN
+request advertising APL 1.8 and H.264 then returned **SUCCESSFUL** with a
+`RenderDocument` response and Video component in 1,098 milliseconds. This is
+response-contract acceptance, not physical APL playback. Additional console
+submissions were stopped when concurrent browser use interfered with input;
+no unrelated clipboard content was submitted or retained.
+
+REN TV was found in four stream variants. Bounded media samples identified an
+SD H.264/AAC stream at 720x576 and two HD H.264/AAC streams at 1920x1080. The SD
+guide identity had channel metadata but no retained programmes in the active
+import window; the HD identity had current programme coverage. The mapping was
+working as designed. No unverified HD schedule was copied onto the SD edition.
+One available HD variant was explicitly preferred for a device trial, with the
+1080p resolution recorded as exceeding VideoApp's documented 720p maximum.
+
+The existing CNN preference was preserved and six exact REN aliases were added:
+**REN TV**, **Wren TV**, **R E N TV**, **Ren Tee Vee**, **Ren Television**, and
+**Rainbow Television**. Offline checks against all 1,562 channel labels and 983
+current programme rows found no publication collision and selected the intended
+variant for every alias. Live Google HomeGraph inventory subsequently matched
+both HA fulfillment paths: the same 30 channels, CNN first, REN second, all six
+REN aliases, and unchanged virtual-TV identity and stock devices. Scheduled
+synchronization propagated the change without a manual Request Sync or HA
+restart. The temporary verification login was revoked and rejection verified.
+These checks do not establish microphone recognition.
+
+The installed image and settings passed exact-source and preservation checks:
+SQLite integrity, inode and source fingerprint, Service, PVC, and the separate
+HLS Proxy deployment and pods were unchanged. CI for `c07693f` passed 716 Python
+tests with one skipped, 106 Google relay tests, 93 Alexa relay tests, Ruff and
+runtime-lock verification. All deployment identities, provider addresses,
+credentials and raw diagnostic material remain outside Git.
+
+The refrigerator was then invoked through its existing Alexa integration, with
+the user's permission to interrupt radio playback. Its Amazon-signed request
+reached the gateway successfully and advertised APL, but neither VideoApp nor
+eligibility for the fallback. The user confirmed hearing the unsupported-video
+response. Follow-up revision `67098d2` added a fixed diagnostic rejection reason;
+a fresh signed refrigerator launch returned HTTP 200 and
+`apl_video_reason=unsupported_runtime`. The device did not advertise a compatible
+APL 1.8-or-newer runtime. No unsupported video directive was forced onto it.
+This is an unsuccessful refrigerator playback attempt, despite a working
+control endpoint and a successful synthetic-capability APL response.
+
+A separate `ask home television to play ren tv` command was sent to the normal
+Alexa display. Its signed request returned HTTP 200 with no Worker exception.
+That is control-path acceptance; physical REN picture/audio confirmation and
+microphone recognition remain separate from the injected text command.
+
+The follow-up image passed the same source, configuration, database and service
+preservation checks. An initial verification connected before application
+startup finished; a subsequent ready-pod verification passed. Six additional
+health probes returned 200 in 5.5–78 milliseconds. No CPU or network changes
+were needed. CI for `67098d2` passed 731 Python tests with one skipped, both
+relay suites, Ruff and runtime-lock verification. Diagnostic mode was reset to false in the protected provisioning
+file and Kubernetes Secret without restarting active playback. The running
+process's already bounded window expires after twenty verified requests or ten
+minutes from startup; future starts have diagnostics disabled. The temporary
+provider observer was deleted, zero active tails were verified, and its local
+observer process was stopped.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed
@@ -404,9 +479,11 @@ visibility, continued scheduled resynchronization as programmes change, dynamic
 catalogue speech recognition and repeated dynamic programme selection remain
 open. The named-channel microphone and physical playback checks are recorded
 separately above. HD compatibility and longer source stability also remain open.
-Alexa CNN playback has the separate household confirmation above; refrigerator
-compatibility and playback controls remain unverified. No public integration
-release or PR merge occurred.
+Alexa CNN playback has the separate household confirmation above. The
+refrigerator's APL attempt was rejected for runtime incompatibility. Physical
+APL playback/controls on a compatible target, REN picture/audio and microphone
+recognition remain separate gates. No public integration release or PR merge
+occurred.
 
 Raw diagnostics and deployment-specific helpers remain private. Earlier native
 observer checks could implicitly launch a Cast receiver and are inconclusive;
