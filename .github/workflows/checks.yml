@@ -24,6 +24,10 @@ jobs:
           cache-local-path: ${{ runner.temp }}/epg-voice-uv-cache
       - run: uv sync --frozen --extra test
       - run: uv run --frozen ruff check .
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - run: node --test deploy/google-home-worker-vpc/relay.test.mjs
       - run: uv run --frozen pytest -q
       - name: Verify runtime lock matches uv.lock
         run: |

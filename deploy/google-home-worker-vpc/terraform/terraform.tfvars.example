@@ -1,0 +1,7 @@
+# Copy outside Git. IDs identify your existing account and verified HA tunnel.
+account_id        = "REPLACE_WITH_ACCOUNT_ID"
+tunnel_id         = "REPLACE_WITH_TUNNEL_UUID"
+workers_namespace = "replace-with-existing-namespace"
+worker_name       = "home-media-google"
+backend_port      = 8123
+publish           = false

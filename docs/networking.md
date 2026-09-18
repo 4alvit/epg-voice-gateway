@@ -43,6 +43,13 @@ The authenticated `GET /v1/catalogue` used by Home TV stays on that internal
 route. The supplied public ingress/tunnel allowlists intentionally omit it.
 Configure HA's catalogue URL with the LAN origin, not the public control host.
 
+Google's OAuth exchange and fulfillment also need a route without browser bot
+challenges. A successful HA login from home does not validate these server calls.
+If Cloudflare logs identify Bot Fight Mode, use the
+[linking diagnostic procedure](google-linking-troubleshooting.md) and choose a
+verified transport. The optional narrow VPC relay has a beta dependency and
+requires explicit deployment; it does not change the base gateway networking.
+
 ## Media endpoint
 
 Set `EPG_MEDIA_BASE_URL` to the media hostname and route only `/media/` to the

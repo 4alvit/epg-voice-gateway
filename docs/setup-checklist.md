@@ -4,7 +4,10 @@ Follow this sequence for a single-household installation. The linked files are
 the detailed instructions; this page records their order and completion gates.
 Replace placeholders only in private copies. No paid cloud database, Cloudflare
 Worker, Home Assistant Cloud subscription, or billing activation is part of
-this setup. Existing provider access and compatible playback hardware are
+the base setup. A separate optional VPC relay can address Cloudflare bot
+challenges but introduces a beta dependency; see
+[linking diagnostics](google-linking-troubleshooting.md).
+Existing provider access and compatible playback hardware are
 operator-supplied dependencies.
 
 1. **Identify dependencies.** Confirm the existing HLS Proxy endpoint, playlist,

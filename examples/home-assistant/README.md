@@ -336,6 +336,10 @@ tester accept the developer terms. If the draft remains hidden, Google's
 require opening the project's Test or Retest flow before looking again in the
 app. Household linking is separate from submitting certification test results.
 
+If Google Home returns an error after the HA browser returns, follow
+[account-linking diagnostics](../../docs/google-linking-troubleshooting.md).
+Check the server-side token exchange before changing the account or catalogue.
+
 ### Draft branding and public release
 
 The documented draft setup requires the integration icon. Company website,

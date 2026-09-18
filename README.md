@@ -172,6 +172,7 @@ used. A Nest Hub or compatible Cast screen is required to show video.
 - [Deployment](docs/deployment.md)
 - [Control and media networking](docs/networking.md)
 - [Acceptance checks and physical-device limits](docs/acceptance.md)
+- [Google linking failures and the optional private relay](docs/google-linking-troubleshooting.md)
 - [Recorded validation and remaining gates](docs/validation-2026-09-18.md)
 
 ```sh
