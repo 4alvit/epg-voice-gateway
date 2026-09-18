@@ -345,3 +345,44 @@ def test_close_is_idempotent_and_operations_fail_with_safe_message():
         database.stream_url("kids")
     with pytest.raises(CatalogStorageError, match="database is closed"):
         database.resolve({"Show"}, NOW)
+
+
+def test_media_snapshot_has_current_rows_and_gap_overlap_availability_without_urls(store):
+    channels = [channel(i, i) for i in ("current", "gap", "overlap")]
+    records = [
+        programme("Now", "current", "current", start=NOW),
+        programme("Ended", "gap", "gap", end=NOW),
+        programme("Future", "gap", "gap", start=NOW + timedelta(seconds=1)),
+        programme("First", "overlap", "overlap"),
+        programme("Second", "overlap", "overlap", start=NOW - timedelta(minutes=1)),
+    ]
+    store.replace(channels, records, 1)
+    labels, current = store.media_candidates(NOW)
+    assert {row.channel_id: row.available for row in labels} == {"current": True, "gap": False, "overlap": False}
+    assert {row.title for row in current} == {"Now", "First", "Second"}
+    assert "synthetic-private" not in repr((labels, current))
+    assert not store._connection.in_transaction
+
+
+def test_media_snapshot_rejects_oversized_catalogue_without_partial_results(store):
+    store.replace([channel(str(i), "Channel") for i in range(10001)], [], 1)
+    with pytest.raises(CatalogStorageError):
+        store.media_candidates(NOW)
+    assert not store._connection.in_transaction
+    store.replace([channel()], [programme()], 2)
+    labels, rows = store.media_candidates(NOW)
+    assert len(labels) == len(rows) == 1
+    assert labels[0].available
+
+
+def test_media_snapshot_rejects_oversized_current_schedule_and_rolls_back(store):
+    records = [programme(str(i), start=NOW - timedelta(seconds=i)) for i in range(10001)]
+    store.replace([channel()], records, 1)
+    with pytest.raises(CatalogStorageError):
+        store.media_candidates(NOW)
+    assert not store._connection.in_transaction
+
+
+def test_media_snapshot_requires_aware_time(store):
+    with pytest.raises(CatalogStorageError):
+        store.media_candidates(NOW.replace(tzinfo=None))

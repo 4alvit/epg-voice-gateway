@@ -14,8 +14,10 @@ from .models import ProgramMatch
 
 Resolver = Callable[[str], Awaitable[list[ProgramMatch]]]
 SessionUrl = Callable[[ProgramMatch], Awaitable[str]]
+MediaResolver = Callable[[str], Awaitable[dict]]
+MediaSelection = Callable[[dict], Awaitable[list[ProgramMatch]]]
 
-HELP = "Tell me which program to play. For example, say, play Kukutiki."
+HELP = "Tell me which channel or program to play. For example, say, play CNN or play Kukutiki."
 UNAVAILABLE = "I could not start that channel right now. Please try again later."
 GUIDE_UNAVAILABLE = "The program guide is unavailable right now. Please try again later."
 
@@ -65,10 +67,16 @@ class AlexaAdapter:
         session_url: SessionUrl,
         *,
         now: Callable[[], datetime] | None = None,
+        media_resolver: MediaResolver | None = None,
+        media_selection: MediaSelection | None = None,
     ) -> None:
         self._resolver = resolver
         self._session_url = session_url
         self._now = now or (lambda: datetime.now(UTC))
+        if (media_resolver is None) != (media_selection is None):
+            raise ValueError("Configure both media search and selection callbacks")
+        self._media_resolver = media_resolver
+        self._media_selection = media_selection
 
     async def handle(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         request = _mapping(payload.get("request"))
@@ -102,7 +110,22 @@ class AlexaAdapter:
             return _speech("Please use a shorter program title.", end_session=False)
 
         try:
-            matches = await self._resolver(query)
+            if self._media_resolver is not None:
+                result = await self._media_resolver(query)
+                if result["status"] == "ambiguous":
+                    labels = list(dict.fromkeys(
+                        _metadata(item["channel_name"]) for item in result["matches"]
+                    ))[:3]
+                    return _speech(
+                        "I found several matches: " + ", ".join(labels)
+                        + ". Please repeat your request with the full channel or program name.",
+                        end_session=False,
+                    )
+                if result["status"] != "matched" or len(result["matches"]) != 1:
+                    return _speech("I could not find an available channel or program for that request.")
+                matches = await self._media_selection(result["matches"][0])
+            else:
+                matches = await self._resolver(query)
             if not matches:
                 return _speech("I could not find that program airing right now.")
             if len(matches) > 1:
@@ -127,6 +150,8 @@ class AlexaAdapter:
             return _speech(GUIDE_UNAVAILABLE)
         except GatewayError:
             return _speech(UNAVAILABLE)
+        except ValueError:
+            return _speech("Please use a channel name or a short program title.", end_session=False)
 
         # VideoApp forbids shouldEndSession, including a null value.
         return {

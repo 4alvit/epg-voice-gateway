@@ -188,3 +188,57 @@ def test_interaction_model_has_searchquery_carrier_phrases():
     play = next(item for item in model["intents"] if item["name"] == "PlayProgramIntent")
     assert play["slots"] == [{"name": "Query", "type": "AMAZON.SearchQuery"}]
     assert all(sample.count("{Query}") == 1 and sample != "{Query}" for sample in play["samples"])
+
+
+def media_adapter(result, *, selected=None):
+    legacy = AsyncMock()
+    search = AsyncMock(return_value=result)
+    select = AsyncMock(return_value=[program()] if selected is None else selected)
+    session_url = AsyncMock(return_value=MEDIA_URL)
+    skill = AlexaAdapter(legacy, session_url, now=lambda: NOW, media_resolver=search, media_selection=select)
+    return skill, legacy, search, select, session_url
+
+
+def test_shared_search_launches_channel_after_fresh_selection():
+    candidate = {"channel_id": "a" * 24, "channel_name": "Example News", "match_kind": "channel"}
+    skill, legacy, search, select, session_url = media_adapter({"status": "matched", "matches": [candidate]})
+    result = asyncio.run(skill.handle(request(query="play Example News")))
+    search.assert_awaited_once_with("play Example News")
+    select.assert_awaited_once_with(candidate)
+    legacy.assert_not_awaited()
+    session_url.assert_awaited_once()
+    assert result["response"]["directives"][0]["type"] == "VideoApp.Launch"
+
+
+@pytest.mark.parametrize("status", ["ambiguous", "unavailable", "no_match"])
+def test_shared_search_nonselection_never_creates_a_session(status):
+    skill, legacy, _, select, session_url = media_adapter({
+        "status": status,
+        "matches": [{"channel_name": "Example Europe"}, {"channel_name": "Example Asia"}],
+    })
+    result = asyncio.run(skill.handle(request()))
+    assert "directives" not in result["response"]
+    if status == "ambiguous":
+        assert "Example Europe" in result["response"]["outputSpeech"]["text"]
+        assert result["response"]["shouldEndSession"] is False
+    legacy.assert_not_awaited()
+    select.assert_not_awaited()
+    session_url.assert_not_awaited()
+
+
+def test_shared_search_expired_selection_never_creates_a_session():
+    skill, _, _, select, session_url = media_adapter({"status": "matched", "matches": [{}]}, selected=[])
+    result = asyncio.run(skill.handle(request()))
+    select.assert_awaited_once()
+    session_url.assert_not_awaited()
+    assert "directives" not in result["response"]
+
+
+def test_shared_search_invalid_query_fails_without_exposing_exception():
+    skill, _, search, select, session_url = media_adapter({})
+    search.side_effect = ValueError("private-provider-address")
+    result = asyncio.run(skill.handle(request()))
+    assert "private-provider" not in json.dumps(result)
+    assert "directives" not in result["response"]
+    select.assert_not_awaited()
+    session_url.assert_not_awaited()

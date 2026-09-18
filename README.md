@@ -1,6 +1,6 @@
 # EPG Voice Gateway
 
-Find a programme that is airing now and play its channel on a compatible Alexa
+Find a channel or a programme that is airing now and play it on a compatible Alexa
 screen or Google Cast device. This service consumes an **existing HLS Proxy**
 and XMLTV guide. It does not depend on OttPlay or install a media proxy.
 
@@ -25,7 +25,7 @@ account linking and per-household authorization before it can safely serve users
 
 ## Request flow
 
-1. A voice adapter submits a programme title.
+1. A voice adapter submits a channel name or programme title.
 2. The service searches fresh XMLTV data for `start <= now < stop` and matches
    the programme's channel to the HLS proxy's M3U catalogue.
 3. A unique match produces an expiring playback session. Ambiguous matches need
@@ -79,6 +79,10 @@ words and honours XMLTV timezone offsets and playlist `tvg-shift` values.
 
 ## HTTP interfaces
 
+- `POST /v1/search`: authenticated full-catalogue channel/programme search, with
+  aliases, transliteration, and conservative typo handling; it creates no session.
+- `POST /v1/play-text`: authenticated free-text selection and fresh signed playback.
+  See [matching rules, API errors, and configuration](docs/media-search.md).
 - `POST /v1/resolve`: `{ "query": "Kukutiki" }`, with
   `Authorization: Bearer <EPG_API_TOKEN>`. Returns current matching programmes.
 - `GET /v1/catalogue`: uses the same bearer authorization and returns
@@ -87,7 +91,7 @@ words and honours XMLTV timezone offsets and playlist `tvg-shift` values.
   The revision changes only when the ordered options change.
 - `GET /v1/channels`: uses the same bearer authorization and returns
   `{ "channels": [{ "channel_id": "<channel ID>", "name": "News Channel", "synonyms": [], "available": true }], "revision": "<SHA-256>" }`.
-  It publishes only the explicit channel voice lineup, with current EPG
+  It publishes the explicit or opt-in automatic channel voice lineup, with current EPG
   availability. It includes no stream URLs, programme titles or provider IDs.
   Keep this endpoint on the internal HA-to-gateway route.
 - `POST /v1/play`: `{ "query": "Kukutiki", "target": "kitchen" }`.
@@ -147,7 +151,7 @@ the control host's `/alexa` path and configure the exact skill ID on the server.
 The server refuses unsigned requests and requests for another skill.
 
 Example invocation: **"Alexa, ask home television to play Kukutiki."** The requested
-title is searched dynamically in EPG. A device must advertise `VideoApp` support;
+channel or current programme is searched dynamically in the shared catalogue. A device must advertise `VideoApp` support;
 rendering APL cards alone does not establish video playback capability. Alexa
 requires an Internet-accessible, trusted HTTPS media endpoint. LAN-only HTTPS
 and an API smoke test do not prove Alexa playback.
@@ -188,6 +192,18 @@ selected channel before requesting a fresh signed stream. It requires installing
 the supplied HA custom integration and selecting the extended fulfillment route;
 the base package alone does not enable named channel commands.
 
+## Free-text Assist and automatic channel names
+
+The [dynamic media resolver](docs/media-search.md) searches all imported channels
+and current programmes independently of Google's finite published list.
+`EPG_CHANNEL_VOICE_MODE=automatic` builds that list with safe names and aliases;
+the default remains `explicit`. No language model or cloud database is required.
+
+For unrestricted query text, install the [HA Assist sentences and intent](examples/home-assistant/assist-README.md)
+and use typed Assist, the HA phone app, or an Assist satellite. Alexa uses the
+same resolver through its SearchQuery slot. The Google display remains a Cast
+receiver; its microphone does not automatically become an Assist microphone.
+
 ## Deployment and verification
 
 - [Ordered setup checklist, from deployment to voice playback](docs/setup-checklist.md)
@@ -196,6 +212,8 @@ the base package alone does not enable named channel commands.
 - [Acceptance checks and physical-device limits](docs/acceptance.md)
 - [Google linking failures and the optional private relay](docs/google-linking-troubleshooting.md)
 - [Named Google channel selection and installation](docs/google-channels.md)
+- [Dynamic media search and automatic channel publication](docs/media-search.md)
+- [Free-text Assist installation and use](examples/home-assistant/assist-README.md)
 - [Recorded validation and remaining gates](docs/validation-2026-09-18.md)
 
 ```sh

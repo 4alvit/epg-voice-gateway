@@ -43,6 +43,14 @@ def allowed_user(user, settings):
     )
 
 
+def allowed_text_user(user, settings):
+    """Assist keeps its authenticated caller's existing receiver permission."""
+    return bool(
+        user and user.is_active
+        and user.permissions.check_entity(settings.target_entity, POLICY_CONTROL)
+    )
+
+
 class Runtime:
     """Entry-scoped cache holds channel names only, never grants or OAuth tokens."""
 
@@ -67,8 +75,12 @@ class Runtime:
             self.session = None
 
     async def request(self, path, data=None):
+        _status, result = await self.request_response(path, data)
+        return result
+
+    async def request_response(self, path, data=None, *, accepted_statuses=(200,)):
         """No redirects, cookies, caller paths, or provider URLs are accepted."""
-        if path not in ("/v1/channels", "/v1/play"):
+        if path not in ("/v1/channels", "/v1/play", "/v1/play-text"):
             raise ChannelError()
         try:
             if self.session is None:
@@ -80,7 +92,7 @@ class Runtime:
                 headers={"Authorization": f"Bearer {self.settings.gateway_token}"},
                 json=data, allow_redirects=False, timeout=ClientTimeout(total=2),
             ) as response:
-                if response.status != 200:
+                if response.status not in accepted_statuses:
                     raise ChannelError("noAvailableChannel" if response.status in (404, 409) else "deviceOffline")
                 if response.content_type != "application/json":
                     raise ChannelError()
@@ -89,9 +101,53 @@ class Runtime:
                     raw.extend(chunk)
                     if len(raw) > MAX_RESPONSE_BYTES:
                         raise ChannelError()
-                return parse_json(raw)
+                return response.status, parse_json(raw)
         except (ClientError, TimeoutError, ValueError, UnicodeError, RecursionError):
             raise ChannelError() from None
+
+    async def play_query(self, user, query):
+        """Resolve free text and dispatch only a validated, unambiguous grant."""
+        from .text import failure, grant_channel, selection_response, validate_query
+
+        query = validate_query(query)
+        if not self.active or not allowed_text_user(user, self.settings):
+            return failure("not_authorized")
+        if self.playing:
+            return failure("busy")
+        self.playing = True
+        try:
+            async with asyncio.timeout(OPERATION_TIMEOUT):
+                if not self.target_available():
+                    return failure("unavailable")
+                status, response = await self.request_response(
+                    "/v1/play-text", {"query": query}, accepted_statuses=(200, 404, 409),
+                )
+                if status != 200:
+                    return selection_response(status, response)
+                channel_id, channel_name = grant_channel(response)
+                url = media_url(response, self.settings.signed_media_origin, channel_id)
+                current_user = await self.hass.auth.async_get_user(user.id)
+                if not self.active or not allowed_text_user(current_user, self.settings):
+                    return failure("not_authorized")
+                if not self.target_available():
+                    return failure("unavailable")
+                await self.hass.services.async_call(
+                    "media_player", "play_media",
+                    {
+                        "entity_id": self.settings.target_entity,
+                        "media_content_id": url,
+                        "media_content_type": "application/vnd.apple.mpegurl",
+                    },
+                    blocking=True, context=Context(user_id=current_user.id),
+                )
+                return {
+                    "status": "accepted", "message": f"Starting {channel_name}.",
+                    "matches": [channel_name],
+                }
+        except (ChannelError, TimeoutError, HomeAssistantError):
+            return failure("unavailable")
+        finally:
+            self.playing = False
 
     async def catalogue(self, *, cached_fallback=False):
         try:

@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -41,12 +42,15 @@ class Settings(BaseSettings):
     xmltv_urls: list[str] = Field(min_length=1, max_length=8)
     database_path: str = ":memory:"
     alexa_skill_id: str = ""
-    title_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    title_aliases: dict[str, list[str]] = Field(default_factory=dict, max_length=200)
     voice_catalogue_limit: int = Field(default=30, ge=1, le=50)
     voice_channel_ids: list[str] = Field(default_factory=list, max_length=200)
     voice_preferred_queries: list[str] = Field(default_factory=list, max_length=50)
     channel_voice_ids: list[str] = Field(default_factory=list, max_length=200)
     channel_voice_limit: int = Field(default=30, ge=1, le=200)
+    channel_voice_mode: Literal["explicit", "automatic"] = "explicit"
+    channel_aliases: dict[str, list[str]] = Field(default_factory=dict, max_length=200)
+    media_preferred_channel_ids: list[str] = Field(default_factory=list, max_length=200)
     refresh_seconds: int = Field(default=300, ge=30, le=86400)
     max_stale_seconds: int = Field(default=900, ge=60, le=172800)
     session_ttl_seconds: int = Field(default=7200, ge=60, le=86400)
@@ -55,12 +59,42 @@ class Settings(BaseSettings):
     ha_token: SecretStr = SecretStr("")
     ha_targets: dict[str, str] = Field(default_factory=dict)
 
-    @field_validator("voice_channel_ids", "channel_voice_ids")
+    @field_validator("voice_channel_ids", "channel_voice_ids", "media_preferred_channel_ids")
     @classmethod
     def voice_channels(cls, values: list[str]) -> list[str]:
         if any(not re.fullmatch(r"[a-f0-9]{24}", value) for value in values):
             raise ValueError("Voice channel IDs must contain 24 lowercase hexadecimal characters")
         return list(dict.fromkeys(values))
+
+    @field_validator("channel_aliases")
+    @classmethod
+    def channel_names(cls, values: dict[str, list[str]]) -> dict[str, list[str]]:
+        for name, aliases in values.items():
+            if len(aliases) > 10:
+                raise ValueError("At most ten aliases per channel are supported")
+            for label in (name, *aliases):
+                if (
+                    not normalize(label) or len(label) > 100
+                    or any(unicodedata.category(c).startswith("C") for c in label)
+                    or re.search(r"(?:[a-z][a-z0-9+.-]*://|www\.)", label, re.IGNORECASE)
+                ):
+                    raise ValueError("Channel aliases must be safe names of at most 100 characters")
+        return values
+
+    @field_validator("title_aliases")
+    @classmethod
+    def programme_aliases(cls, values: dict[str, list[str]]) -> dict[str, list[str]]:
+        for name, aliases in values.items():
+            if len(aliases) > 10:
+                raise ValueError("At most ten aliases per programme are supported")
+            for label in (name, *aliases):
+                if (
+                    not normalize(label) or len(label) > 200
+                    or any(unicodedata.category(c).startswith("C") for c in label)
+                    or re.search(r"(?:[a-z][a-z0-9+.-]*://|www\.)", label, re.IGNORECASE)
+                ):
+                    raise ValueError("Programme aliases must be safe names of at most 200 characters")
+        return values
 
     @field_validator("voice_preferred_queries")
     @classmethod

@@ -1,0 +1,20 @@
+# Copy to <config>/custom_sentences/ru/epg_voice.yaml.
+language: ru
+intents:
+  EPGVoicePlayMedia:
+    data:
+      - sentences:
+          - "[пожалуйста] (включи|покажи|играй) {query} на экране"
+          - "[пожалуйста] (включи|покажи|играй) {query} на home channels"
+          - "[пожалуйста] играй {query}"
+      - sentences:
+          - "[пожалуйста] (включи|покажи) (канал|телеканал) {query}"
+        slots:
+          query_prefix: "channel "
+      - sentences:
+          - "[пожалуйста] (включи|покажи) (передачу|программу|сериал) {query}"
+        slots:
+          query_prefix: "programme "
+lists:
+  query:
+    wildcard: true

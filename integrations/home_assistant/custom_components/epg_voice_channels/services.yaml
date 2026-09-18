@@ -1,0 +1,7 @@
+play_query:
+  fields:
+    query:
+      required: true
+      example: "play Example News"
+      selector:
+        text:

@@ -1,6 +1,6 @@
 # Alexa custom skill
 
-This adapter launches a currently airing program through Alexa's `VideoApp`
+This adapter finds a channel or currently airing program and launches its stream through Alexa's `VideoApp`
 interface. It is a private deployment adapter, not a published multi-household
 video service. Keep the provider playlist and credentials on the gateway.
 
@@ -16,7 +16,9 @@ video service. Keep the provider playlist and credentials on the gateway.
    that advertises `VideoApp` in the request's supported interfaces.
 
 Use **"Alexa, ask home television to play Kukutiki"** or open the skill and say
-**"play Kukutiki"**. The English model does not enable Russian-language Alexa
+**"play Kukutiki"**. Channel queries such as **"play Example News"** use the same
+[dynamic resolver](../../docs/media-search.md), including aliases and conservative
+typo handling, across all imported channels. The English model does not enable Russian-language Alexa
 support; configure program aliases when spoken names differ from EPG titles.
 
 The gateway returns an explanatory response when no current program matches,

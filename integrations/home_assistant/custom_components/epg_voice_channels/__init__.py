@@ -26,7 +26,10 @@ from .runtime import Runtime, allowed_user, google_config
 
 async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
     """Register once; the view resolves active config entries for every request."""
+    from .services import register_services
+
     hass.http.register_view(ChannelView(hass))
+    register_services(hass)
     return True
 
 

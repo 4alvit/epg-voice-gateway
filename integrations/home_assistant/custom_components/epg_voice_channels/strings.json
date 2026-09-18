@@ -35,5 +35,17 @@
       "single_instance_allowed": "Only one Home Channels adapter is supported.",
       "reconfigure_successful": "Configuration updated."
     }
+  },
+  "services": {
+    "play_query": {
+      "name": "Play a media query",
+      "description": "Find an unambiguous channel or current programme and start it on the configured display using the caller's permission.",
+      "fields": {
+        "query": {
+          "name": "Media query",
+          "description": "A channel name, current programme title, or supported playback phrase. No URLs or receiver overrides are accepted."
+        }
+      }
+    }
   }
 }

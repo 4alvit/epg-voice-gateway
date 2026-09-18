@@ -16,10 +16,12 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from defusedxml.ElementTree import iterparse
 
+from .automatic_channels import build_automatic_channels
 from .channel_catalogue import build_channel_catalogue
 from .config import Settings
 from .errors import CatalogUnavailable, InvalidSource
 from .models import Channel, ProgramMatch, Programme
+from .resolver import resolve_media
 from .search import normalize, query_variants
 from .source_cache import SourceCache
 from .storage import CatalogStorageError, CatalogStore
@@ -356,9 +358,15 @@ class Catalog:
         )
 
     async def channel_catalogue(self, *, now: datetime | None = None) -> dict:
-        """Return the explicit channel lineup with fresh current EPG availability."""
+        """Return a bounded publication list, separate from full-catalogue search."""
         if not self.ready:
             raise CatalogUnavailable()
+        if self.settings.channel_voice_mode == "automatic":
+            channels, _ = await self.media_candidates(now=now)
+            return await asyncio.to_thread(
+                build_automatic_channels, channels, preferred_channel_ids=self.settings.media_preferred_channel_ids,
+                aliases=self.settings.channel_aliases, limit=self.settings.channel_voice_limit,
+            )
         try:
             candidates = await asyncio.to_thread(
                 self.store.channel_candidates, now or datetime.now(UTC),
@@ -367,6 +375,35 @@ class Catalog:
         except CatalogStorageError:
             raise CatalogUnavailable() from None
         return build_channel_catalogue(candidates, self.settings.channel_voice_limit)
+
+    async def media_candidates(self, *, now: datetime | None = None):
+        if not self.ready:
+            raise CatalogUnavailable()
+        try:
+            return await asyncio.to_thread(
+                self.store.media_candidates, now or datetime.now(UTC),
+            )
+        except CatalogStorageError:
+            raise CatalogUnavailable() from None
+
+    async def search_media(self, query: str, *, now: datetime | None = None) -> dict:
+        """Search all imported channels, independently of Google publication limits."""
+        channels, programmes = await self.media_candidates(now=now)
+        return await asyncio.to_thread(
+            resolve_media, query, channels, programmes,
+            aliases=self.settings.title_aliases,
+            channel_aliases=self.settings.channel_aliases,
+            preferred_channel_ids=self.settings.media_preferred_channel_ids,
+        )
+
+    async def media_selection(self, candidate: dict) -> list[ProgramMatch]:
+        """Revalidate a selected candidate against the current guide before playback."""
+        current = await self.current_on_channel(candidate["channel_id"])
+        if len(current) != 1:
+            return []
+        if candidate["match_kind"] == "programme" and normalize(current[0].title) != normalize(candidate["title"]):
+            return []
+        return current
 
     async def current_on_channel(self, channel_id: str, *, now: datetime | None = None) -> list[ProgramMatch]:
         """Resolve a saved channel against the fresh catalogue's current schedule."""

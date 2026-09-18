@@ -1,0 +1,11 @@
+# Copy to <config>/custom_sentences/en/epg_voice.yaml.
+language: en
+intents:
+  EPGVoicePlayMedia:
+    data:
+      - sentences:
+          - "[please] (play|watch|show) {query} on home channels"
+          - "[please] (play|watch|show) {query}"
+lists:
+  query:
+    wildcard: true

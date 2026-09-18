@@ -252,3 +252,13 @@ To roll back:
 Keep the protected backups until stock fulfillment and any retained playback
 route are verified. No Cloudflare billing, zone-security, or HLS-proxy change
 is required merely to enable or remove this component.
+
+## Automatic names and full-text search
+
+The default explicit lineup above is preserved. For an automatically generated
+lineup, aliases, and variant preferences, see [dynamic media search](media-search.md).
+The published Google list remains bounded and differs from the full catalogue
+available through [Assist](../examples/home-assistant/assist-README.md) and Alexa.
+Updating an installed component from 0.1.0 requires copying the whole updated
+directory, validating HA configuration, and restarting HA while the display is
+idle. Config-entry reload alone does not reload its Python code.

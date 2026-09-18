@@ -1,0 +1,14 @@
+# Merge this mapping under intent_script in configuration.yaml, or include this
+# file with: intent_script: !include assist-intent-script.yaml
+EPGVoicePlayMedia:
+  description: "Play a channel or current programme from the query text."
+  mode: parallel
+  action:
+    - action: epg_voice_channels.play_query
+      data:
+        query: "{{ (query_prefix | default('')) ~ query }}"
+      response_variable: media_result
+    - stop: "Return the playback result to Assist."
+      response_variable: media_result
+  speech:
+    text: "{{ action_response.message }}"

@@ -438,6 +438,56 @@ class CatalogStore:
             except (sqlite3.Error, ValueError, OverflowError):
                 raise CatalogStorageError("The channel catalogue could not be read") from None
 
+    def media_candidates(
+        self, instant: datetime,
+    ) -> tuple[list[ChannelCandidate], list[ProgramMatch]]:
+        """Read one bounded snapshot of all channel labels and current programmes.
+
+        Unlike a voice publication limit, this bound must never silently hide
+        search matches. Oversized snapshots fail closed. The lock and read
+        transaction keep both queries consistent with a concurrent EPG refresh.
+        Upstream URLs and provider identifiers are not selected.
+        """
+        try:
+            timestamp = _timestamp(instant)
+        except (TypeError, AttributeError, ValueError, OverflowError):
+            raise CatalogStorageError("Invalid media search time") from None
+        with self._lock:
+            connection = self._open_connection()
+            try:
+                connection.execute("BEGIN")
+                channels = connection.execute("""
+                    SELECT channel_id, name, epg_name FROM channels
+                    ORDER BY channel_id LIMIT 10001
+                """).fetchall()
+                rows = connection.execute("""
+                    SELECT title, channel_id, channel_name, starts_at, ends_at
+                    FROM programmes INDEXED BY programmes_current_window
+                    WHERE starts_at <= ? AND ends_at > ?
+                    ORDER BY channel_id, starts_at, ends_at, title
+                    LIMIT 10001
+                """, (timestamp, timestamp)).fetchall()
+                if len(channels) > 10000 or len(rows) > 10000:
+                    raise CatalogStorageError("Media search snapshot exceeds supported bounds")
+                counts: dict[str, int] = {}
+                for row in rows:
+                    counts[row["channel_id"]] = counts.get(row["channel_id"], 0) + 1
+                labels = [ChannelCandidate(
+                    row["channel_id"], row["name"], row["epg_name"],
+                    counts.get(row["channel_id"], 0) == 1,
+                ) for row in channels]
+                programmes = [ProgramMatch(
+                    row["title"], row["channel_id"], row["channel_name"],
+                    datetime.fromtimestamp(row["starts_at"], UTC),
+                    datetime.fromtimestamp(row["ends_at"], UTC),
+                ) for row in rows]
+                connection.commit()
+                return labels, programmes
+            except (sqlite3.Error, ValueError, OverflowError, CatalogStorageError):
+                with suppress(sqlite3.Error):
+                    connection.rollback()
+                raise CatalogStorageError("The media search snapshot could not be read") from None
+
     def current_on_channel(self, channel_id: str, instant: datetime) -> list[ProgramMatch]:
         """Read at most twenty current programmes through the channel/time index.
 

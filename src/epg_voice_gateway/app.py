@@ -33,6 +33,10 @@ class Query(BaseModel):
     query: str = Field(min_length=1, max_length=200)
 
 
+class TextPlayQuery(Query):
+    target: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{0,63}$")
+
+
 class PlayQuery(Query):
     query: str | None = Field(default=None, max_length=200)
     target: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{0,63}$")
@@ -138,7 +142,11 @@ def create_app(
 
         app.state.config, app.state.client = config, http
         app.state.catalog, app.state.sessions, app.state.caster = guide, sessions, caster
-        app.state.alexa = AlexaAdapter(guide.resolve, session_url)
+        app.state.alexa = AlexaAdapter(
+            guide.resolve, session_url,
+            media_resolver=getattr(guide, "search_media", None),
+            media_selection=getattr(guide, "media_selection", None),
+        )
         app.state.verification_slots = asyncio.Semaphore(4)
         task = asyncio.create_task(guide.run()) if start_refresh else None
         try:
@@ -202,6 +210,55 @@ def create_app(
     async def catalogue(request: Request):
         authorize(request)
         return await request.app.state.catalog.voice_catalogue()
+
+    @app.post("/v1/search")
+    async def search(request: Request):
+        authorize(request)
+        _, data = await _body(request)
+        try:
+            query = Query.model_validate(data)
+            return await request.app.state.catalog.search_media(query.query)
+        except (ValidationError, ValueError):
+            raise HTTPException(400, "Invalid media search request") from None
+
+    @app.post("/v1/play-text")
+    async def play_text(request: Request):
+        authorize(request)
+        _, data = await _body(request)
+        state = request.app.state
+        try:
+            query = TextPlayQuery.model_validate(data)
+            result = await state.catalog.search_media(query.query)
+        except (ValidationError, ValueError):
+            raise HTTPException(400, "Invalid media playback request") from None
+        if result["status"] == "ambiguous":
+            return JSONResponse(
+                {"error": "ambiguous_media", "matches": result["matches"]}, status_code=409,
+            )
+        if result["status"] == "unavailable":
+            return JSONResponse({"error": "media_unavailable"}, status_code=404)
+        if result["status"] != "matched" or len(result["matches"]) != 1:
+            return JSONResponse({"error": "no_media_match"}, status_code=404)
+        # Never create a grant from a stale search result, guessed URL, or model output.
+        matches = await state.catalog.media_selection(result["matches"][0])
+        if len(matches) != 1:
+            return JSONResponse({"error": "no_current_programme"}, status_code=404)
+        if query.target and (state.caster is None or query.target not in state.config.ha_targets):
+            raise PlaybackUnavailable()
+        match = matches[0]
+        session = state.sessions.create(state.catalog.stream_url(match))
+        if query.target:
+            try:
+                await state.caster.play(query.target, session.url)
+            except GatewayError:
+                state.sessions.revoke(session.token)
+                raise
+        return {
+            "status": "playing" if query.target else "ready",
+            "programme": _programme(match),
+            "media_url": session.url,
+            "expires_at": session.expires_at,
+        }
 
     @app.get("/v1/channels")
     async def channels(request: Request):
