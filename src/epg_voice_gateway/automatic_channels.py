@@ -55,6 +55,41 @@ class _Row:
     members: tuple[_Member, ...]
 
 
+@dataclass(frozen=True)
+class PreparedChannel:
+    """Stable publication metadata; current guide availability is never cached."""
+
+    channel_id: str
+    name: str
+    synonyms: tuple[str, ...]
+
+
+def _catalogue_result(channels: list[dict]) -> dict:
+    encoded = json.dumps(
+        channels, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode()
+    return {"channels": channels, "revision": hashlib.sha256(encoded).hexdigest()}
+
+
+def prepare_automatic_channels(candidates: list[ChannelCandidate], **options) -> tuple[PreparedChannel, ...]:
+    """Run collision analysis once per imported catalogue, retaining names only."""
+    result = build_automatic_channels(candidates, **options)
+    return tuple(PreparedChannel(
+        row["channel_id"], row["name"], tuple(row["synonyms"]),
+    ) for row in result["channels"])
+
+
+def render_automatic_channels(
+    prepared: tuple[PreparedChannel, ...], current: list[ChannelCandidate],
+) -> dict:
+    """Join freshly queried selected-channel availability without rescanning names."""
+    available = {candidate.channel_id for candidate in current if candidate.available}
+    return _catalogue_result([{
+        "channel_id": row.channel_id, "name": row.name, "synonyms": list(row.synonyms),
+        "available": row.channel_id in available,
+    } for row in prepared])
+
+
 def _safe_name(value: str) -> str:
     if not isinstance(value, str) or any(
         unicodedata.category(character).startswith("C") for character in value
@@ -245,7 +280,4 @@ def build_automatic_channels(
             "name": row.selected.base, "synonyms": synonyms[:10],
             "available": row.selected.candidate.available,
         })
-    encoded = json.dumps(
-        channels, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    ).encode()
-    return {"channels": channels, "revision": hashlib.sha256(encoded).hexdigest()}
+    return _catalogue_result(channels)

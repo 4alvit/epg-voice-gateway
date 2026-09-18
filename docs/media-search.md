@@ -59,7 +59,12 @@ IDs require an explicit preference and are otherwise omitted. Availability does
 not silently switch a chosen variant. Explicit aliases cannot claim another
 channel's actual name.
 
-Automatic publication is ordered by preferred IDs, then name and ID. Its limit
+Automatic publication is ordered by preferred IDs, then name and ID.
+Name and collision analysis is cached in memory for each successful catalogue
+import and warmed in the background at startup. Every read still queries the
+published channels' current availability; playback and stale-data checks are
+never cached. A cold build may take longer than a normal request, so verify a
+warm catalogue before initial Google synchronization. Its limit
 is 1–200, with 30 as the recommended initial size. Start with channels compatible
 with the intended display. This publication bound does not restrict free-text
 search: Assist and Alexa can search an imported channel outside Google's list.

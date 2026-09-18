@@ -16,8 +16,12 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from defusedxml.ElementTree import iterparse
 
-from .automatic_channels import build_automatic_channels
-from .channel_catalogue import build_channel_catalogue
+from .automatic_channels import (
+    PreparedChannel,
+    prepare_automatic_channels,
+    render_automatic_channels,
+)
+from .channel_catalogue import ChannelCandidate, build_channel_catalogue
 from .config import Settings
 from .errors import CatalogUnavailable, InvalidSource
 from .models import Channel, ProgramMatch, Programme
@@ -209,6 +213,12 @@ class Catalog:
         self.updated_at = None if saved is None else self.clock() - max(0, time.time() - saved)
         self.last_refresh_failed = False
         self._lock = asyncio.Lock()
+        self._publication_lock = asyncio.Lock()
+        self._channel_generation = 0
+        self._channel_names: tuple[int, tuple[PreparedChannel, ...]] | None = None
+        self._channel_name_task: asyncio.Task | None = None
+        self._imported_channel_names: list[ChannelCandidate] | None = None
+        self._closed = False
 
     @property
     def ready(self) -> bool:
@@ -299,15 +309,51 @@ class Catalog:
                         matches.append(ProgramMatch(programme.title, channel.channel_id, channel.name, programme.starts_at + delta, programme.ends_at + delta))
                 if not matches:
                     raise CatalogUnavailable()
-                await asyncio.to_thread(self.store.replace, channels, matches, time.time(), source_fingerprint=self.source_fingerprint)
-                self.updated_at = self.clock()
-                self.last_refresh_failed = False
+                # Publication reads must not observe a new database import with
+                # names cached from the preceding generation. Downloading and
+                # parsing remain outside this brief commit boundary.
+                async with self._publication_lock:
+                    commit = asyncio.create_task(asyncio.to_thread(
+                        self.store.replace, channels, matches, time.time(),
+                        source_fingerprint=self.source_fingerprint,
+                    ))
+                    cancelled = False
+                    while True:
+                        try:
+                            await asyncio.shield(commit)
+                            break
+                        except asyncio.CancelledError:
+                            # A worker thread cannot be cancelled once SQLite
+                            # starts writing. Keep the publication lock until
+                            # its result and generation are known, even during
+                            # shutdown or repeated cancellation requests.
+                            cancelled = True
+                            if commit.cancelled():
+                                # An event-loop shutdown may cancel every task,
+                                # including the shielded worker wrapper. Never
+                                # serve cached names with an unknown commit.
+                                self.updated_at = None
+                                self._channel_names = None
+                                raise
+                    self.updated_at = self.clock()
+                    self.last_refresh_failed = False
+                    self._channel_generation += 1
+                    self._channel_names = None
+                    self._imported_channel_names = [ChannelCandidate(
+                        channel.channel_id, channel.name, channel.epg_name, False,
+                    ) for channel in channels]
+                    if cancelled:
+                        raise asyncio.CancelledError
+                self._schedule_channel_names()
             except Exception:
                 self.last_refresh_failed = True
                 LOGGER.warning("catalog_refresh_failed")
                 raise CatalogUnavailable() from None
 
     async def run(self) -> None:
+        # Warm a restored catalogue without blocking startup or a first request.
+        # All callers share this task; an HTTP timeout cannot cancel its build.
+        self._schedule_channel_names()
         if self.ready:
             remaining = self.settings.refresh_seconds - (self.clock() - self.updated_at)
             if remaining > 0:
@@ -321,7 +367,58 @@ class Catalog:
             await asyncio.sleep(delay)
 
     def close(self) -> None:
+        self._closed = True
+        if self._channel_name_task is not None:
+            self._channel_name_task.cancel()
         self.store.close()
+
+    def _schedule_channel_names(self) -> asyncio.Task | None:
+        if self._closed or not self.ready or self.settings.channel_voice_mode != "automatic":
+            return None
+        if self._channel_names is not None and self._channel_names[0] == self._channel_generation:
+            return None
+        if self._channel_name_task is None or self._channel_name_task.done():
+            self._channel_name_task = asyncio.create_task(self._prepare_channel_names())
+            # Background warmup errors stay private and are retried on the next
+            # request. Retrieving the exception avoids an unhandled-task log.
+            self._channel_name_task.add_done_callback(
+                lambda task: None if task.cancelled() else task.exception(),
+            )
+        return self._channel_name_task
+
+    async def _prepare_channel_names(self) -> None:
+        while not self._closed:
+            async with self._publication_lock:
+                if not self.ready or self._closed:
+                    raise CatalogUnavailable()
+                generation = self._channel_generation
+                channels = self._imported_channel_names
+                if channels is None:
+                    # Restored databases need one complete snapshot. Subsequent
+                    # imports reuse the labels already parsed during refresh.
+                    try:
+                        channels, _ = await asyncio.to_thread(
+                            self.store.media_candidates, datetime.now(UTC),
+                        )
+                    except CatalogStorageError:
+                        raise CatalogUnavailable() from None
+            try:
+                prepared = await asyncio.to_thread(
+                    prepare_automatic_channels, channels,
+                    preferred_channel_ids=self.settings.media_preferred_channel_ids,
+                    aliases=self.settings.channel_aliases, limit=self.settings.channel_voice_limit,
+                )
+            except ValueError:
+                raise CatalogUnavailable() from None
+            async with self._publication_lock:
+                if not self.ready or self._closed:
+                    raise CatalogUnavailable()
+                if generation == self._channel_generation:
+                    self._channel_names = (generation, prepared)
+                    return
+                # A newer import committed while collision analysis was running.
+                # Discard the old result and rebuild within the same shared task.
+        raise CatalogUnavailable()
 
     async def resolve(
         self, query: str, *, now: datetime | None = None, channel_id: str | None = None,
@@ -362,11 +459,28 @@ class Catalog:
         if not self.ready:
             raise CatalogUnavailable()
         if self.settings.channel_voice_mode == "automatic":
-            channels, _ = await self.media_candidates(now=now)
-            return await asyncio.to_thread(
-                build_automatic_channels, channels, preferred_channel_ids=self.settings.media_preferred_channel_ids,
-                aliases=self.settings.channel_aliases, limit=self.settings.channel_voice_limit,
-            )
+            while not self._closed:
+                task = self._schedule_channel_names()
+                if task is not None:
+                    await asyncio.shield(task)
+                async with self._publication_lock:
+                    if not self.ready or self._closed:
+                        raise CatalogUnavailable()
+                    cached = self._channel_names
+                    if cached is None or cached[0] != self._channel_generation:
+                        continue
+                    prepared = cached[1]
+                    try:
+                        current = await asyncio.to_thread(
+                            self.store.channel_candidates, now or datetime.now(UTC),
+                            [row.channel_id for row in prepared],
+                        )
+                    except CatalogStorageError:
+                        raise CatalogUnavailable() from None
+                    if not self.ready:
+                        raise CatalogUnavailable()
+                    return render_automatic_channels(prepared, current)
+            raise CatalogUnavailable()
         try:
             candidates = await asyncio.to_thread(
                 self.store.channel_candidates, now or datetime.now(UTC),
