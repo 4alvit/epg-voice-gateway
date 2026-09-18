@@ -51,9 +51,9 @@ HTTP request returned 200. That service did not expose the underlying Google
 response status, so its acknowledgement is not recorded as a separate Google
 HTTP 200. The independent inventory read confirms the devices stored in
 HomeGraph; it does not prove a later EPG change automatically resynchronizes.
-Catalogue recovery was checked separately below. Phone UI visibility, dynamic
-catalogue speech and successful playback initiated by Google remain separate
-checks. A subsequent fixed-shortcut voice attempt is recorded below.
+Catalogue recovery was checked separately below. Phone UI visibility and dynamic
+catalogue speech remain separate checks. The fixed-shortcut voice failure and
+successful recovery are recorded below.
 
 A transient error on HA's browser login page was also reported during these
 attempts. Its cause was not established; successful linking does not identify
@@ -115,6 +115,14 @@ timeline advancement; HA did not lose the session after playback started. The
 user separately confirmed moving video and sound on the physical display.
 This was a manual HA recovery check, not a second Google voice request.
 
+The user subsequently repeated the Google news voice command and confirmed that
+it worked. A read-only HA check independently observed a new news-script trigger,
+a different media grant and the display in PLAYING state. The observer sent no
+playback commands during that retry. This confirms one successful fixed-shortcut
+voice request through Google, HA and the gateway to physical display playback.
+The 150-second measurement above belongs to the preceding manual check; it is
+not presented as a separate timed observation of the voice retry.
+
 ## Playback results
 
 A minimal SD baseline passed a 150-second receiver check and remained playing
@@ -135,15 +143,13 @@ timeout was also observed; freshness enforcement remained enabled.
 
 ## Remaining acceptance
 
-After accepted linking and the verified HomeGraph inventory, Google Home phone
-UI visibility, continued scheduled resynchronization as programmes change,
-dynamic catalogue speech recognition and successful playback initiated by
-Google remain separate open checks. The fixed news phrase reached HA once, but
-failed before Cast dispatch; the subsequent manual recovery check passed with
-human picture/audio confirmation. Repeated same-choice device playback, HD
-compatibility and longer source stability remain open. Alexa physical playback
-was not established by these Google/Cast checks. No public integration release
-or PR merge occurred.
+Account linking, HomeGraph inventory, recovery synchronization and the fixed
+news voice shortcut have passed their recorded checks. Google Home phone UI
+visibility, continued scheduled resynchronization as programmes change, dynamic
+catalogue speech recognition and repeated dynamic programme selection remain
+open. HD compatibility and longer source stability also remain open. Alexa
+physical playback was not established by these Google/Cast checks. No public
+integration release or PR merge occurred.
 
 Raw diagnostics and deployment-specific helpers remain private. Earlier native
 observer checks could implicitly launch a Cast receiver and are inconclusive;
