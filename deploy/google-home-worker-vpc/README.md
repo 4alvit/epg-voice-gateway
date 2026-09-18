@@ -35,6 +35,16 @@ it affects the whole zone. WAF custom or Page Rule exceptions cannot skip free
 Bot Fight Mode. This module manages no zone settings, WAF rules, DNS or existing
 public tunnel ingress. See [linking diagnostics](../../docs/google-linking-troubleshooting.md).
 
+This relay is **Plan A**. **Plan B** uses the existing public HA hostname and
+ordinary Cloudflare Tunnel after an explicitly accepted zone-wide Bot Fight
+Mode disablement. Follow the
+[Plan B runbook](../../docs/google-linking-troubleshooting.md#plan-b-ordinary-cloudflare-tunnel-with-bot-fight-mode-disabled)
+if choosing that fallback; do not disable Bot Fight Mode while deploying this
+relay. Plan B restores only Google's token and fulfillment URLs, keeps browser
+authorization and the client ID unchanged, and requires a fresh successful
+Google linking attempt before retiring the relay. Other WAF, Access, country
+or IP restrictions can still prevent linking.
+
 ## Relay contract
 
 - Require HTTPS and the exact `PUBLIC_HOST`. Reject query strings and all
@@ -133,9 +143,15 @@ catalogue synchronization and physical voice/playback separately.
 
 ## Rollback
 
-Restore the prior Console URLs if abandoning the relay, then disable its public
-address with `publish=false` or `workers_dev=false` through the chosen resource
-owner. A prior URL still challenged by Bot Fight Mode is a rollback of the
-configuration, not a working fallback. Keep HA OAuth and the zone protections.
-Delete the dedicated VPC Service only after its Worker no longer uses it;
-preserve the shared tunnel and HA configuration.
+For a working fallback, follow the
+[Plan B runbook](../../docs/google-linking-troubleshooting.md#plan-b-ordinary-cloudflare-tunnel-with-bot-fight-mode-disabled)
+and verify real Google token exchange and SYNC before disabling the relay's
+public address with `publish=false` or `workers_dev=false`. Keep the established
+resource owner. Delete the dedicated VPC Service only after its Worker no
+longer uses it; preserve the shared tunnel and HA configuration.
+
+If simply abandoning an unaccepted deployment, restore the recorded Console
+URLs and disable the relay through that same owner. A prior URL still
+challenged by Bot Fight Mode is a rollback of the configuration, not a working
+fallback. Keep HA OAuth and the zone protections unless Plan B's zone-wide
+change was explicitly chosen.

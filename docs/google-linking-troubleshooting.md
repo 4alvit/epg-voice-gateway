@@ -61,3 +61,71 @@ avoids the challenge. Keep paid upgrades outside this procedure.
 After changing the selected route, start a new phone linking attempt. HA
 authorization codes are single-use. Verify actual token exchange, SYNC and
 current catalogue discovery before testing a microphone command.
+
+## Plan A: keep Bot Fight Mode and use the private relay
+
+Use the [Workers VPC relay runbook](../deploy/google-home-worker-vpc/README.md)
+to route only Google's token exchange and fulfillment through the dedicated
+Worker. Browser authorization stays on the existing HA HTTPS origin. Verify
+the private target and public relay before changing the two Console URLs.
+This plan preserves the zone's Bot Fight Mode and introduces the documented
+Workers VPC beta dependency. Completing the deployment is not proof that
+Google account linking succeeded.
+
+## Plan B: ordinary Cloudflare Tunnel with Bot Fight Mode disabled
+
+This is a documented fallback, not a step to perform during Plan A. Do not
+disable Bot Fight Mode now. Choose this plan only after explicitly accepting
+that disabling Bot Fight Mode removes that bot protection for the entire
+zone, including its other hostnames. The existing HA authentication and any
+other enabled Cloudflare controls still apply.
+
+```text
+Phone browser -> existing HA HTTPS hostname -> ordinary Cloudflare Tunnel -> HA
+Google token exchange and fulfillment -> same HA HTTPS hostname -> same Tunnel -> HA
+```
+
+1. Record the current Bot Fight Mode setting, the two Google Console URLs,
+   and the existing HA hostname privately. Identify the configuration owner:
+   if zone settings are managed with Terraform, prepare and review the change
+   there rather than creating dashboard drift. Preserve the tunnel, its DNS
+   record, HA authentication and the unrelated zone settings.
+2. Check the existing public tunnel route for `/auth/token` and
+   `/api/google_assistant`. Review WAF rules, Cloudflare Access policies,
+   country restrictions and source-IP allowlists for those paths. Google
+   cannot complete an interactive Access login or a browser challenge during
+   these server calls. A rule allowing only the home's IP will still reject
+   Google. Resolve any separate restriction deliberately; do not assume
+   disabling Bot Fight Mode bypasses it or broadly remove other protections.
+3. After the zone-wide change is authorized, disable Bot Fight Mode through
+   the existing configuration owner. Verify that the ordinary tunnel still
+   reaches HA. Use invalid credentials for bounded probes: the token endpoint
+   should return HA's JSON OAuth error, normally HTTP 400, and fulfillment
+   should reject an invalid Bearer token with HTTP 401. Check that responses
+   are not Cloudflare challenges. A successful probe from home still does
+   not establish Google's access.
+4. In Google Home Developer Console, restore the prior **Token URL** to
+   `https://YOUR_HA_HOST/auth/token` and **Cloud fulfillment URL** to
+   `https://YOUR_HA_HOST/api/google_assistant`. Use the actual existing HTTPS
+   hostname in the private configuration. Keep the browser **Authorization
+   URL**, Google **Client ID**, scopes and disabled HTTP Basic option
+   unchanged. Do not introduce a shared HA token or change account privileges.
+5. Start a fresh linking attempt in the phone's Google Home app. Do not reuse
+   an authorization code or an old callback. Confirm the actual Google token
+   exchange and initial SYNC, and verify that Google discovers the expected
+   catalogue. Inspect only sanitized status and count evidence; do not record
+   real authorization codes or token values. A saved Console URL or a local
+   HTTP probe does not prove that linking succeeded.
+6. Verify catalogue resynchronization and, separately, a real voice command
+   and playback on the target device. If another edge rule still blocks the
+   request, return to the failed-step diagnostics rather than declaring the
+   fallback successful.
+7. Only after the fallback is validated, disable the unused relay's public
+   address using `publish=false` or `workers_dev=false` with its established
+   resource owner. Remove its dedicated VPC Service only after no Worker
+   references it. Preserve the shared tunnel and HA configuration.
+
+If Plan B fails, restore the recorded Console URLs and Bot Fight Mode setting
+through their configuration owners. Returning to Plan A requires its relay
+to remain deployed, published and verified. Restoring a previously challenged
+ordinary tunnel URL alone does not restore working Google access.
