@@ -28,6 +28,16 @@ steps before changing credentials, device categories or EPG matching.
    before code exchange. A registered agent means SYNC reached HA; it does not
    prove Google accepted the response. Do not print `.storage/auth`, create an
    administrator account, or issue a shared HA token to bypass the failure.
+5. After linking, independently check Google's stored device inventory with
+   [HomeGraph `devices.sync`](https://developers.home.google.com/reference/home-graph/rest/v1/devices/sync):
+   send `POST https://homegraph.googleapis.com/v1/devices:sync` with the linked
+   `agentUserId`, using the same project's service-account credentials and the
+   `https://www.googleapis.com/auth/homegraph` scope. Keep credentials and the
+   agent ID private; retain only the status, agent-match boolean, device count
+   and expected device types/traits. This reads inventory; it does not request
+   a new fulfillment SYNC. A successful HA `google_assistant.request_sync`
+   service call also does not expose Google's HTTP result. Verify later EPG
+   changes, phone UI visibility and voice playback separately.
 
 ## Cloudflare Bot Fight Mode
 

@@ -41,8 +41,10 @@ operator-supplied dependencies.
    See [dynamic selection](../examples/home-assistant/README.md#dynamic-current-programme-selector).
 7. **Create the Google draft.** Accept the developer terms, select Scene/Sensor,
    upload the generic icon, and configure the documented OAuth URLs, scopes,
-   client ID and fulfillment URL against your public HA origin. Save the draft;
-   household linking does not require public certification. See
+   client ID and fulfillment URL. Use the public HA origin for browser
+   authorization; use either that origin or the verified optional relay for
+   token exchange and fulfillment, following the selected transport plan.
+   Save the draft; household linking does not require public certification. See
    [Console setup](../examples/home-assistant/README.md#first-time-manual-google-linking).
 8. **Choose synchronization.** Manual synchronization can omit the service
    account with the documented HA configuration. For automatic catalogue sync,
