@@ -168,9 +168,11 @@ used. A Nest Hub or compatible Cast screen is required to show video.
 
 ## Deployment and verification
 
+- [Ordered setup checklist, from deployment to voice playback](docs/setup-checklist.md)
 - [Deployment](docs/deployment.md)
 - [Control and media networking](docs/networking.md)
 - [Acceptance checks and physical-device limits](docs/acceptance.md)
+- [Recorded validation and remaining gates](docs/validation-2026-09-18.md)
 
 ```sh
 uv run --extra test pytest

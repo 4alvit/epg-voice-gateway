@@ -39,6 +39,10 @@ Assistant instance can call the internal Kubernetes/LAN endpoint instead of
 using a public control route. A Cloudflare account, Worker, paid plan, or new
 subscription is not required by the application itself.
 
+The authenticated `GET /v1/catalogue` used by Home TV stays on that internal
+route. The supplied public ingress/tunnel allowlists intentionally omit it.
+Configure HA's catalogue URL with the LAN origin, not the public control host.
+
 ## Media endpoint
 
 Set `EPG_MEDIA_BASE_URL` to the media hostname and route only `/media/` to the
@@ -86,9 +90,11 @@ MPEG-TS/AAC, MPEG4 or H.264 video, and a maximum resolution of 1280x720 for this
 interface. A 4K channel needs a compatible existing rendition or a separate
 transcoding service; this gateway does not resize video.
 
-Google playback uses Home Assistant and Cast. The supported initial voice path
-is a configured Google Home Routine activating an exposed Home Assistant script
-with a predefined programme query or catalogue channel and a fixed display.
+Google playback uses Home Assistant and Cast. Home TV advertises a finite list
+of current EPG titles through Google's Modes trait; one private handler validates
+and plays any offered choice. Fixed shortcuts remain available through exposed
+HA scripts and optional Google Home Routines, with predefined programme queries
+or catalogue channels and a fixed display.
 The HA dispatcher calls the gateway over the LAN, then starts Cast locally.
 Only Google's HA account-linking and fulfillment paths need a reachable
 control endpoint for the manual Google integration; the gateway control API

@@ -30,10 +30,15 @@ depend on the changing title of the news broadcast.
    you do not want this optional shortcut.
 4. Configure `EPG_TITLE_ALIASES` in the gateway when the spoken title differs
    from the guide spelling; for example, `{"kukutiki":["Кукутики"]}`.
-5. Load [`package.yaml`](package.yaml) through HA packages, or merge its sections
-   into your configuration. It does not enable a Google integration. Validate
-   the complete HA configuration, then reload REST commands and scripts, or
-   restart HA when required. Confirm the dispatcher is available after reload:
+5. Load [`package.yaml`](package.yaml) through
+   [HA packages](https://www.home-assistant.io/docs/configuration/packages/), or
+   merge its sections into your configuration. It does not enable a Google
+   integration. Back up the affected files and validate the complete staged
+   configuration with your installed HA version. First installation adds
+   helpers and an automation: activate it with a checked HA restart in an idle
+   window. Reloading only REST commands and scripts is insufficient. For later
+   script-only edits, a checked script reload can avoid a restart. Do not reload
+   while household scripts are running. Confirm the dispatcher is available:
    an installed validation check caught HA package merging dropping empty
    `text: {}` selectors even though the configuration check reported no errors.
    Keep the supplied `multiline: false` selector options.
@@ -84,7 +89,9 @@ remain available.
    channel. Other current titles fill the remaining places. The default
    catalogue limit is 30, configurable through `EPG_VOICE_CATALOGUE_LIMIT`.
 3. Set `epg_voice_gateway_catalogue_url` in HA secrets to the reachable gateway
-   `/v1/catalogue` URL. Keep `epg_voice_google_agent_user_id` empty unless enabling
+   `/v1/catalogue` URL on the internal gateway origin. The supplied public control
+   ingress and tunnel rules deliberately do not expose this path; copying their
+   public hostname here returns 404. Keep `epg_voice_google_agent_user_id` empty unless enabling
    the optional automatic Google sync described below. Validate and restart HA
    when adding these helpers and automations for the first time.
 4. Expose `input_select.home_tv` using the supplied Google exposure fragment.
@@ -134,8 +141,9 @@ leave `input_boolean.epg_voice_auto_sync` disabled and ask Google to sync device
 after changes. `input_text.epg_voice_google_sync_status` explicitly indicates
 when manual synchronization and phone verification are needed.
 
-For automatic requests, configure HomeGraph and the private service-account
-file according to the official HA setup instructions below. Set
+For automatic requests, complete
+[HomeGraph and the service-account key](#homegraph-and-the-service-account-key)
+below. Set
 `epg_voice_google_agent_user_id` to the HA user ID actually used to link Google,
 not its username or an administrator's unrelated ID. Only after checking that
 configuration, change the private package's `epg_voice_auto_sync.initial` to
@@ -170,8 +178,9 @@ extra Cloudflare Access login, service-token header, or browser challenge.
 A successful check from a home-IP allowlist does not establish this.
 
 Create a project in the [Google Home Developer Console](https://console.home.google.com/)
-and record its **project ID**, which is different from its display name. Add a
-Cloud-to-cloud integration and select the device types you will expose. Prepare
+and accept the developer terms when prompted. Record its **project ID**, which
+is different from its display name. Add a Cloud-to-cloud integration and select
+**Sensor** for Home TV and **Scene** for the fixed shortcuts. Prepare
 a 144 × 144 PNG integration icon. Google requires a round mark with transparent
 space outside it; this is separate from a company-profile logo.
 [Google integration setup](https://developers.home.google.com/cloud-to-cloud/integration/create)
@@ -192,7 +201,8 @@ Configure these fields, replacing only the example hostname and project ID:
 - Leave HTTP Basic authentication for the client ID and secret disabled.
 - Leave App Flip and Local fulfillment disabled for the initial setup.
 
-Save the integration as a draft. These settings follow the
+Save the integration as a draft. The project owner can proceed to mobile linking
+without submitting certification or completing a Test Suite run. These settings follow the
 [HA manual setup guide](https://www.home-assistant.io/integrations/google_assistant/#manual-setup-if-you-dont-have-home-assistant-cloud).
 
 ### Minimal HA configuration
@@ -236,11 +246,62 @@ and commands use HA's OAuth and fulfillment endpoints. Ask Google to sync
 devices after exposure changes. The credential requirement for HA-initiated
 sync is explicit in [HA's implementation](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/components/google_assistant/http.py).
 
-For the standard reporting setup, follow HA's service-account and HomeGraph API
-instructions, store the JSON file privately, add
-`service_account: !include SERVICE_ACCOUNT.json`, and enable `report_state` if
-needed. Keep that file out of Git and public logs. It is separate from the
-gateway API token and the console's client-secret field.
+### HomeGraph and the service-account key
+
+Use this path for automatic catalogue synchronization. It does not require
+enabling state reporting; keep `report_state: false` for this package.
+
+1. Open Google Cloud Console and select the **same project ID** as the Google
+   Home draft and HA configuration. Open **APIs & Services → Library**, find
+   **HomeGraph API**, and enable it. Review and accept any required terms.
+   This deployment uses no billing account or paid subscription. Do not activate
+   a trial or attach a payment method as part of these instructions.
+2. Open **IAM & Admin → Service Accounts → Create service account**. Give it a
+   dedicated name, such as `home-media-sync`. The recorded installation left
+   the optional project-role and user-access grants empty. Its key authenticated
+   successfully, but successful Request Sync after linking remains a separate
+   check. Do not grant Owner or Editor to work around a sync failure.
+3. Open that service account's **Keys → Add key → Create new key → JSON**.
+   Move the downloaded file out of Downloads into protected storage. Transfer
+   it securely to the HA configuration directory as
+   `home-media-service-account.json`; allow only the HA process owner to read it
+   (mode `0600`). Do not paste its contents into the console's OAuth secret,
+   gateway settings, Git, or a troubleshooting report.
+4. Add `service_account: !include home-media-service-account.json` under the
+   existing `google_assistant` section. Preserve its project ID, exposure entries,
+   `expose_by_default: false`, and `report_state: false`. Do not create a second
+   `google_assistant` section. Validate the complete configuration and restart
+   HA in an idle window after first adding the credential.
+5. Create a dedicated non-administrator HA login and complete mobile linking
+   below using that account. To obtain its ID without dumping credentials,
+   sign in to HA in a browser as that user, open the browser developer console,
+   and run this read-only command:
+
+   ```javascript
+   (await document.querySelector('home-assistant').hass.callWS({type: 'auth/current_user'})).id
+   ```
+
+   Copy only the returned ID into private `epg_voice_google_agent_user_id`.
+   This uses HA's [current-user WebSocket command](https://github.com/home-assistant/core/blob/2026.9.1/homeassistant/components/auth/__init__.py).
+   Do not copy the account's token or the contents of `.storage/auth`.
+6. Validate and activate the changed helper configuration, then verify the
+   `input_text.epg_voice_google_agent_user_id` value in HA. Enable persistent
+   automatic sync as described above. Say **"Hey Google, sync my devices"**
+   once after linking, even if the list has not changed, and verify the current
+   options. Automatic sync requests are only issued when visible labels change.
+
+The JSON key and Google Console's client-secret field have different purposes.
+An OAuth token exchange proves the service-account key works; it does not prove
+the household account is linked or its devices synchronized. A HomeGraph 404
+can indicate an unlinked user, wrong user ID, or project mismatch. For a 403,
+inspect the API error and check API enablement and account linking before
+changing permissions. HA's current setup guide recommends Token Creator and
+Google's Request Sync guide names an OpenID token creator role; those role
+instructions differ from the recorded minimal installation. Review the actual
+authorization failure and current upstream guidance before adding permissions.
+[HA setup](https://www.home-assistant.io/integrations/google_assistant/#manual-setup-if-you-dont-have-home-assistant-cloud),
+[Google Request Sync](https://developers.home.google.com/cloud-to-cloud/integration/request-sync),
+[service-account key storage](https://docs.cloud.google.com/iam/docs/keys-create-delete).
 
 ### Link and verify on the household account
 
@@ -251,18 +312,21 @@ Cloudflare challenge means the request did not reach the required endpoint.
 
 In the Google Home app, use **Add device → Works with Google Home**, choose
 **[test] Your integration name**, and sign in to HA. Use the Google account that
-owns the developer project. Google's scene acknowledgment is not playback
-proof: run **“Hey Google, activate Play Kukutiki”** and verify picture and audio
-on the display. Then create the shorter fixed Routine described above.
+owns the developer project. After returning to Google Home, say
+**“Hey Google, sync my devices”**. Verify Home TV's currently offered options,
+then test a listed title or a fixed scene such as
+**“Hey Google, activate Play News Channel”**. Confirm picture and audio on the
+display; Google's acknowledgment alone is not playback proof. Create a shorter
+fixed Routine only after the underlying scene works.
 
 Account linking grants Google renewable HA access as the user who signs in.
 The `email` and `name` entries are not entity-level HA token scopes, and exposing
-only two scenes does not restrict the underlying OAuth token to those scenes.
+only the intended devices does not restrict the underlying OAuth token to them.
 Use a dedicated non-administrator HA user to avoid granting administrative
 privileges. HA's standard non-administrator role still permits reading and
 controlling all entities. Treat exposure as a discovery setting, not an
-authorization boundary; a deployment requiring token-level access to only two
-commands needs a separately scoped authorization service.
+authorization boundary; a deployment requiring token-level access to only the
+exposed devices needs a separately scoped authorization service.
 [HA token issuance](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/components/auth/__init__.py),
 [standard user policy](https://github.com/home-assistant/core/blob/2026.9.2/homeassistant/auth/permissions/system_policies.py).
 
