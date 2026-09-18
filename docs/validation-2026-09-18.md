@@ -313,6 +313,66 @@ streaming was removed, with no active tails or persistent request logging left.
 CI for `920d3a9` passed: Python 619 passed and one skipped, Google relay 106
 passed, Alexa relay 93 passed, Ruff passed, and runtime lock consistency passed.
 
+## Alexa request failures and DNS recovery
+
+Subsequent household attempts to launch the skill and request either example
+all failed. A controlled Echo Show launch reproduced a signed POST returning
+HTTP 400. Worker metrics showed requests taking approximately 6.25 seconds,
+consistent with the gateway's six-second request deadline. The initial single
+successful Manual JSON request had not established repeatable operation.
+
+Inside the gateway, an ordinary Amazon certificate-host DNS lookup failed after
+20.113 seconds. One of the two cluster DNS backends was unreachable from the
+gateway's node. A host firewall rejected that node's VXLAN packets with ICMP
+administratively prohibited. An exact node-peer `/32`, incoming-interface and
+UDP overlay-port allowance was added before the terminal rejection, preserving
+the existing IP filter and all other rules. The rule was persisted through the
+host's existing firewall owner, with protected backups and rollback evidence.
+No routing change, node restart or DNS restart was needed. All 24 DNS endpoint
+probes and 30 ordinary resolver calls then passed; their respective maximum
+durations were 132 and 50.6 milliseconds.
+
+Gateway revision `0d1b0be` also adds a bounded cache of validated Amazon
+certificate bytes, with at most eight entries and a five-minute lifetime.
+Certificate trust, dates, hostname and request signatures remain checked on
+every request; expired entries have no stale fallback. Fixed warning categories
+distinguish verification and handler deadlines without logging request bodies,
+identifiers or credentials. Socket timeouts still do not bound system DNS,
+which is why the network repair is required independently of the cache.
+
+The verified image was installed by changing only the gateway image. Runtime
+source hashes, health and readiness checks passed. Settings, secrets, SQLite
+integrity and identity, Service, PVC and the separate HLS Proxy deployment and
+pods were preserved. Local tests passed with 634 passed and two skipped. CI
+passed with 635 Python tests passed and one skipped, 106 Google relay tests,
+93 Alexa relay tests, Ruff and runtime-lock verification. The generic firewall
+helper and documentation passed ten offline tests and remain in an unmerged
+infrastructure PR.
+
+After deployment, one control-only launch sent to the idle Echo Show correlated
+with a signed POST returning HTTP 200 at 20:43:57 UTC, without a Worker exception.
+This confirms provider delivery and the gateway response for that device;
+human confirmation of its spoken response was not collected. The first observed
+post-deployment request took 3.17 seconds at the Worker, below the deadline.
+
+Three fresh Amazon Console Manual JSON requests then completed with
+**SUCCESSFUL**, each independently correlated with signed HTTP 200 at the edge:
+
+- `LaunchRequest`: the expected help and reprompt, keeping the session open.
+- `PlayProgramIntent` with `CNN`: a `VideoApp.Launch` directive for
+  **CNN International Europe**, with **Quest Means Business** as the programme.
+- `PlayProgramIntent` with `Kukutiki`: the expected no-available-match response,
+  ending the session without a video directive. This does not demonstrate
+  Kukutiki playback or availability in the current catalogue.
+
+Manual JSON does not play video on a physical display. The typed conversational
+simulator continued to report an unsupported-device message without skill I/O;
+that separate simulator behavior remains unexplained. No Home Energy, HLS
+Proxy, zone-security or billing settings changed during this incident.
+The temporary observer was deleted after verification; the API confirmed zero
+active tails, and both local diagnostic observers were stopped. Persistent
+request logging was not enabled.
+
 ## Remaining acceptance
 
 Account linking, HomeGraph inventory, recovery synchronization and the fixed
