@@ -86,8 +86,9 @@ Configure these service addresses:
 
 - `EPG_HLS_PROXY_URL`: the internal origin of the existing HLS proxy, including
   its scheme and optional port, with no credentials, query string, or path.
-- `EPG_PLAYLIST_PATH`: the existing proxy's playlist path. Playlist channel IDs
-  must match the configured XMLTV channel IDs for EPG resolution.
+- `EPG_PLAYLIST_PATH`: the existing proxy's playlist path. Matching XMLTV IDs are
+  preferred; the gateway can also match normalized channel names, so verify the
+  resulting channel mapping against the configured guide.
 - `EPG_XMLTV_URLS`: a JSON array of trusted operator-configured XMLTV feed URLs.
   Keep any URL containing provider credentials in this secret file.
 - `EPG_MEDIA_BASE_URL`: the separate HTTPS media origin reachable by the playback
