@@ -184,7 +184,7 @@ def test_launch_prompts_and_session_end_is_empty():
 def test_interaction_model_has_searchquery_carrier_phrases():
     model_path = Path(__file__).parents[1] / "examples/alexa/en-US.json"
     model = json.loads(model_path.read_text())["interactionModel"]["languageModel"]
-    assert model["invocationName"] == "ott play"
+    assert model["invocationName"] == "home television"
     play = next(item for item in model["intents"] if item["name"] == "PlayProgramIntent")
     assert play["slots"] == [{"name": "Query", "type": "AMAZON.SearchQuery"}]
     assert all(sample.count("{Query}") == 1 and sample != "{Query}" for sample in play["samples"])

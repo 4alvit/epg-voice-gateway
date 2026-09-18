@@ -15,7 +15,7 @@ video service. Keep the provider playlist and credentials on the gateway.
 5. Enable development testing for your Amazon account and test from a device
    that advertises `VideoApp` in the request's supported interfaces.
 
-Use **"Alexa, ask ott play to play Kukutiki"** or open the skill and say
+Use **"Alexa, ask home television to play Kukutiki"** or open the skill and say
 **"play Kukutiki"**. The English model does not enable Russian-language Alexa
 support; configure program aliases when spoken names differ from EPG titles.
 

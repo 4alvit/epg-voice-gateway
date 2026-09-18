@@ -37,6 +37,11 @@ spec:
         app: epg-voice-gateway
     spec:
       automountServiceAccountToken: false
+      # Resolve qualified upstream names before expanding the cluster search list.
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

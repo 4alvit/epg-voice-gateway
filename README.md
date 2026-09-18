@@ -94,7 +94,7 @@ Create a custom skill with the interaction model and settings in
 the control host's `/alexa` path and configure the exact skill ID on the server.
 The server refuses unsigned requests and requests for another skill.
 
-Example invocation: **"Alexa, ask ott play to play Kukutiki."** The requested
+Example invocation: **"Alexa, ask home television to play Kukutiki."** The requested
 title is searched dynamically in EPG. A device must advertise `VideoApp` support;
 rendering APL cards alone does not establish video playback capability. Alexa
 requires an Internet-accessible, trusted HTTPS media endpoint. LAN-only HTTPS
