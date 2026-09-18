@@ -125,12 +125,6 @@ script:
         data:
           media_content_id: "{{ session['media_url'] }}"
           media_content_type: application/vnd.apple.mpegurl
-          extra:
-            stream_type: LIVE
-            metadata:
-              metadataType: 0
-              title: "{{ session['programme'].get('title', 'Live TV') }}"
-              subtitle: "{{ session['programme'].get('channel_name', '') }}"
 
   play_kukutiki:
     alias: Play Kukutiki

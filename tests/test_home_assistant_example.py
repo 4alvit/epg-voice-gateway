@@ -202,14 +202,6 @@ def test_programme_wrapper_requests_session_then_casts_locally_to_fixed_player()
         "data": {
             "media_content_id": MEDIA_URL,
             "media_content_type": "application/vnd.apple.mpegurl",
-            "extra": {
-                "stream_type": "LIVE",
-                "metadata": {
-                    "metadataType": 0,
-                    "title": "Synthetic programme",
-                    "subtitle": "Example News",
-                },
-            },
         },
     }]
 

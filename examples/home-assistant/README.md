@@ -292,9 +292,12 @@ sharing or publishing it. This example does not publish a Google integration.
 `script.epg_voice_play_programme` accepts `query`, `channel_id`, or both. With
 both supplied, the channel filters the title search. It sends no `target` to
 the gateway, which returns a session with status `ready`. HA then starts Cast
-playback locally with HLS content type, `LIVE` stream type, programme title and
-channel metadata. The player entity is fixed in `secrets.yaml`; a voice caller
-cannot choose another entity or service.
+playback locally with the signed media URL and HLS content type. HA and the
+receiver infer the stream type. This minimal payload sustained playback in a
+receiver compatibility check where adding an explicit `LIVE` stream type and
+metadata did not; the check did not isolate which added field caused the failure.
+The player entity is fixed in `secrets.yaml`; a voice caller cannot choose
+another entity or service.
 The optional `exact_title` field defaults to false; the dynamic selector sets
 it to true together with the full current title and channel ID.
 
