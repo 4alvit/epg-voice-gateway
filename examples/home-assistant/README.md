@@ -62,8 +62,9 @@ in the Cloud UI. This example does not require or enable a subscription.
 Google exposes HA scripts as scenes. It does **not** pass arbitrary spoken
 programme names into script fields. The dispatcher can accept a variable query
 from another authorized HA automation, but the Google wrappers deliberately
-have fixed inputs and a fixed playback device. Add a wrapper and a Routine for
-each additional favourite programme. This setup does not use retired Google
+have fixed inputs and a fixed playback device. Additional fixed shortcuts need
+a wrapper and Routine; the dynamic selector below uses one shared handler.
+This setup does not use retired Google
 Conversational Actions or require Gemini.
 
 ## Dynamic current-programme selector
@@ -74,8 +75,9 @@ airing programmes without adding a script for each title. The fixed shortcuts
 remain available.
 
 1. Configure the gateway's `EPG_VOICE_CHANNEL_IDS` with an ordered JSON list of
-   verified channel IDs. Its default empty list exposes no programmes. Choose
-   channels whose codecs and resolution work on the intended display.
+   verified channel IDs. The default empty list considers all mapped channels,
+   subject to the catalogue limit. Use an explicit allowlist of channels whose
+   codecs and resolution work on the intended display.
 2. Optionally set `EPG_VOICE_PREFERRED_QUERIES`, for example
    `["Kukutiki", "Columbo"]`, and the required `EPG_TITLE_ALIASES`. These labels
    appear only while a matching programme is currently airing on an allowed
