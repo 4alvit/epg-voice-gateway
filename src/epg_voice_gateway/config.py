@@ -1,9 +1,13 @@
 """Operator configuration. Production identities and secrets are supplied at runtime."""
 
+import re
+import unicodedata
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from .search import normalize
 
 
 def origin(value: str, *, https: bool = False) -> str:
@@ -38,6 +42,9 @@ class Settings(BaseSettings):
     database_path: str = ":memory:"
     alexa_skill_id: str = ""
     title_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    voice_catalogue_limit: int = Field(default=30, ge=1, le=50)
+    voice_channel_ids: list[str] = Field(default_factory=list, max_length=200)
+    voice_preferred_queries: list[str] = Field(default_factory=list, max_length=50)
     refresh_seconds: int = Field(default=300, ge=30, le=86400)
     max_stale_seconds: int = Field(default=900, ge=60, le=172800)
     session_ttl_seconds: int = Field(default=7200, ge=60, le=86400)
@@ -45,6 +52,32 @@ class Settings(BaseSettings):
     ha_url: str = ""
     ha_token: SecretStr = SecretStr("")
     ha_targets: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("voice_channel_ids")
+    @classmethod
+    def voice_channels(cls, values: list[str]) -> list[str]:
+        if any(not re.fullmatch(r"[a-f0-9]{24}", value) for value in values):
+            raise ValueError("Voice channel IDs must contain 24 lowercase hexadecimal characters")
+        return list(dict.fromkeys(values))
+
+    @field_validator("voice_preferred_queries")
+    @classmethod
+    def voice_queries(cls, values: list[str]) -> list[str]:
+        result = []
+        seen = set()
+        for value in values:
+            label = " ".join(value.split())
+            normalized = normalize(label)
+            if (
+                not normalized or len(label) > 100
+                or normalized in {"ready", "unavailable"}
+                or any(unicodedata.category(character).startswith("C") for character in value)
+            ):
+                raise ValueError("Voice preferences must be safe labels of at most 100 characters")
+            if normalized not in seen:
+                result.append(label)
+                seen.add(normalized)
+        return result
 
     @field_validator("hls_proxy_url")
     @classmethod

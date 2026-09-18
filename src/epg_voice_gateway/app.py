@@ -37,6 +37,7 @@ class PlayQuery(Query):
     query: str | None = Field(default=None, max_length=200)
     target: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{0,63}$")
     channel_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{24}$")
+    exact_title: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def require_query_or_channel(self):
@@ -44,6 +45,8 @@ class PlayQuery(Query):
             self.query = None
         if self.query is None and self.channel_id is None:
             raise ValueError("A programme query or channel ID is required")
+        if self.exact_title and (self.query is None or self.channel_id is None):
+            raise ValueError("Exact title selection requires a query and channel ID")
         return self
 
 
@@ -195,6 +198,11 @@ def create_app(
         matches = await request.app.state.catalog.resolve(query.query)
         return {"matches": [_programme(match) for match in matches]}
 
+    @app.get("/v1/catalogue")
+    async def catalogue(request: Request):
+        authorize(request)
+        return await request.app.state.catalog.voice_catalogue()
+
     @app.post("/v1/play")
     async def play(request: Request):
         authorize(request)
@@ -207,9 +215,16 @@ def create_app(
         if query.query is None:
             matches = await state.catalog.current_on_channel(query.channel_id)
         else:
-            matches = await state.catalog.resolve(query.query)
             if query.channel_id:
+                if query.exact_title:
+                    matches = await state.catalog.resolve(
+                        query.query, channel_id=query.channel_id, exact_title=True,
+                    )
+                else:
+                    matches = await state.catalog.resolve(query.query, channel_id=query.channel_id)
                 matches = [match for match in matches if match.channel_id == query.channel_id]
+            else:
+                matches = await state.catalog.resolve(query.query)
         if not matches:
             return JSONResponse({"error": "no_current_programme"}, status_code=404)
         if len(matches) != 1:

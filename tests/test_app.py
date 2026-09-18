@@ -187,7 +187,7 @@ def test_selected_channel_gets_its_own_scoped_playback_session(api):
         assert f"/channel/{selected.channel_id}/" in resource.upstream_url
         assert "synthetic-upstream" not in response.text
         run.catalog.stream_url.assert_called_once_with(selected)
-        run.catalog.resolve.assert_awaited_once_with("Kukutiki")
+        run.catalog.resolve.assert_awaited_once_with("Kukutiki", channel_id=selected.channel_id)
         run.catalog.current_on_channel.assert_not_awaited()
         assert run.requests == []
 
@@ -210,7 +210,7 @@ def test_title_filter_does_not_fall_back_to_a_saved_channel_airing_another_title
             "query": "A Different Programme", "channel_id": selected.channel_id,
         })
         assert response.status_code == 404
-        run.catalog.resolve.assert_awaited_once_with("A Different Programme")
+        run.catalog.resolve.assert_awaited_once_with("A Different Programme", channel_id=selected.channel_id)
         run.catalog.current_on_channel.assert_not_awaited()
         run.catalog.stream_url.assert_not_called()
 

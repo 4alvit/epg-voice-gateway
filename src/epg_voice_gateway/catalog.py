@@ -19,9 +19,10 @@ from defusedxml.ElementTree import iterparse
 from .config import Settings
 from .errors import CatalogUnavailable, InvalidSource
 from .models import Channel, ProgramMatch, Programme
-from .search import normalize
+from .search import normalize, query_variants
 from .source_cache import SourceCache
 from .storage import CatalogStorageError, CatalogStore
+from .voice_catalogue import build_voice_catalogue
 
 LOGGER = logging.getLogger(__name__)
 _DEFAULT_SOURCE_BYTES = 64 * 1024 * 1024
@@ -319,22 +320,39 @@ class Catalog:
     def close(self) -> None:
         self.store.close()
 
-    async def resolve(self, query: str, *, now: datetime | None = None) -> list[ProgramMatch]:
+    async def resolve(
+        self, query: str, *, now: datetime | None = None, channel_id: str | None = None,
+        exact_title: bool = False,
+    ) -> list[ProgramMatch]:
         if not self.ready:
             raise CatalogUnavailable()
         normalized = normalize(query)
         if not normalized or len(query) > 200:
             return []
-        variants = {normalized}
-        for key, aliases in self.settings.title_aliases.items():
-            group = {normalize(key), *(normalize(alias) for alias in aliases)}
-            if normalized in group:
-                variants.update(group)
+        variants = {normalized} if exact_title else query_variants(query, self.settings.title_aliases)
         instant = now or datetime.now(UTC)
         try:
-            return await asyncio.to_thread(self.store.resolve, variants, instant)
+            return await asyncio.to_thread(
+                self.store.resolve, variants, instant, channel_id=channel_id,
+                exact_title=normalized if exact_title else None,
+            )
         except CatalogStorageError:
             raise CatalogUnavailable() from None
+
+    async def voice_catalogue(self, *, now: datetime | None = None) -> dict:
+        """Return bounded current selections; unavailable data never becomes an empty list."""
+        if not self.ready:
+            raise CatalogUnavailable()
+        try:
+            candidates = await asyncio.to_thread(
+                self.store.voice_candidates, now or datetime.now(UTC), self.settings.voice_channel_ids,
+            )
+        except CatalogStorageError:
+            raise CatalogUnavailable() from None
+        return build_voice_catalogue(
+            candidates, self.settings.voice_preferred_queries, self.settings.title_aliases,
+            self.settings.voice_catalogue_limit,
+        )
 
     async def current_on_channel(self, channel_id: str, *, now: datetime | None = None) -> list[ProgramMatch]:
         """Resolve a saved channel against the fresh catalogue's current schedule."""

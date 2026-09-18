@@ -81,6 +81,10 @@ words and honours XMLTV timezone offsets and playlist `tvg-shift` values.
 
 - `POST /v1/resolve`: `{ "query": "Kukutiki" }`, with
   `Authorization: Bearer <EPG_API_TOKEN>`. Returns current matching programmes.
+- `GET /v1/catalogue`: uses the same bearer authorization and returns
+  `{ "options": [{ "label": "Columbo", "query": "Columbo", "channel_id": "<channel ID>" }], "revision": "<SHA-256>" }`.
+  Options describe currently airing titles; no playback URLs are included.
+  The revision changes only when the ordered options change.
 - `POST /v1/play`: `{ "query": "Kukutiki", "target": "kitchen" }`.
   Creates a session and asks Home Assistant to cast it to a configured target.
   Omit `target` to obtain a playback URL without starting a device.
@@ -88,6 +92,11 @@ words and honours XMLTV timezone offsets and playlist `tvg-shift` values.
   current programme on a saved channel. This still requires a fresh guide and
   exactly one current programme. With both `query` and `channel_id`, the channel
   filters the title search; it does not bypass a missing title match.
+  For an option from `/v1/catalogue`, send its `query` and `channel_id` with
+  `"exact_title": true`. This requires the complete normalized title to still
+  be airing on that channel, without expanding aliases or matching a later
+  programme that merely contains the old title. A missing title returns 404;
+  ambiguity returns 409; an unavailable or stale guide returns 503.
 - `POST /alexa`: verifies the Amazon certificate, request signature, timestamp,
   and exact configured skill ID before processing the voice request.
 - `GET /media/{session}/{resource}`: validates both session and resource before
@@ -97,6 +106,24 @@ Control credentials and playback URLs are bearer credentials. Do not log them
 or publish them in issues. Access logs are disabled in the supplied runtime.
 The session store has bounded capacity and expiry; restarting the process
 invalidates sessions. Run exactly one replica and one worker in this release.
+
+The finite voice catalogue defaults to 30 options; `EPG_VOICE_CATALOGUE_LIMIT`
+accepts 1–50. `EPG_VOICE_CHANNEL_IDS` is an ordered allowlist of up to 200
+verified channel IDs; an empty list permits every mapped channel.
+`EPG_VOICE_PREFERRED_QUERIES` prioritizes up to 50 spoken labels, using
+`EPG_TITLE_ALIASES` to find their currently airing EPG titles. A preference
+does not create an option when its programme is off air.
+
+Catalogue reads use the SQLite current-time index and consider at most 2,000
+current rows, ordered by configured channel priority, then channel name and ID.
+Preferences rank only this bounded set. Overlapping schedules are excluded.
+Duplicate normalized titles use the first channel in that order, and each
+option retains that channel ID for playback. Labels are unique, at most 100
+characters, and exclude control characters and the reserved values `Ready`
+and `Unavailable`. Full title queries are at most 200 characters; titles are
+never truncated into broader searches. Long titles need a shorter preferred
+label to appear. A fresh guide with no eligible programmes returns empty
+options; stale or unavailable data returns 503 instead.
 
 ## Alexa installation and use
 

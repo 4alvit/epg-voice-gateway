@@ -20,6 +20,7 @@ from .search import normalize
 
 _SCHEMA_VERSION = 1
 _MAX_RESULTS = 20
+VOICE_CANDIDATE_LIMIT = 2000
 
 
 class CatalogStorageError(CatalogUnavailable):
@@ -292,6 +293,7 @@ class CatalogStore:
 
     def resolve(
         self, variants: set[str], instant: datetime, limit: int = _MAX_RESULTS,
+        *, channel_id: str | None = None, exact_title: str | None = None,
     ) -> list[ProgramMatch]:
         """Return current phrase matches, sorted by case-folded channel and start.
 
@@ -301,6 +303,10 @@ class CatalogStore:
         """
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 0:
             raise CatalogStorageError("Invalid EPG search limit")
+        if channel_id is not None and (not isinstance(channel_id, str) or not channel_id):
+            raise CatalogStorageError("Invalid EPG channel request")
+        if exact_title is not None and (not isinstance(exact_title, str) or not exact_title):
+            raise CatalogStorageError("Invalid exact EPG title")
         try:
             phrases = sorted({phrase for value in variants if (phrase := normalize(value))})
             timestamp = _timestamp(instant)
@@ -315,12 +321,16 @@ class CatalogStore:
             FROM programme_fts JOIN programmes AS p ON p.id = programme_fts.rowid
             WHERE programme_fts MATCH ? AND p.starts_at <= ? AND p.ends_at > ?
                 AND ({guards})
+                {"AND p.channel_id = ?" if channel_id is not None else ""}
+                {"AND p.normalized_title = ?" if exact_title is not None else ""}
             ORDER BY p.channel_sort, p.starts_at, p.channel_id
             LIMIT ?
         """
         parameters = [
             match_expression, timestamp, timestamp,
-            *(" " + phrase + " " for phrase in phrases), min(limit, _MAX_RESULTS),
+            *(" " + phrase + " " for phrase in phrases),
+            *([channel_id] if channel_id is not None else []),
+            *([normalize(exact_title)] if exact_title is not None else []), min(limit, _MAX_RESULTS),
         ]
         with self._lock:
             try:
@@ -332,6 +342,52 @@ class CatalogStore:
                 ) for row in rows]
             except (sqlite3.Error, ValueError, OverflowError):
                 raise CatalogStorageError("EPG programmes could not be searched") from None
+
+    def voice_candidates(self, instant: datetime, channel_ids: list[str]) -> list[ProgramMatch]:
+        """Read at most 2,000 unambiguous current rows through the time index.
+
+        A configured channel list is an ordered allowlist. Otherwise channel
+        name and ID determine selection before truncation. Every overlapping
+        channel is excluded, including overlaps beyond the candidate limit.
+        Titles and stream URLs are never interpolated into SQL.
+        """
+        if (
+            not isinstance(channel_ids, list) or len(channel_ids) > 200
+            or any(not isinstance(value, str) or not value for value in channel_ids)
+        ):
+            raise CatalogStorageError("Invalid voice channel request")
+        try:
+            timestamp = _timestamp(instant)
+        except (TypeError, AttributeError, ValueError, OverflowError):
+            raise CatalogStorageError("Invalid voice catalogue request") from None
+        allowed = " AND p.channel_id IN (" + ",".join("?" for _ in channel_ids) + ")" if channel_ids else ""
+        priority = (
+            "CASE p.channel_id " + " ".join("WHEN ? THEN " + str(index) for index, _ in enumerate(channel_ids)) + " END, "
+            if channel_ids else ""
+        )
+        query = f"""
+            SELECT p.title, p.channel_id, p.channel_name, p.starts_at, p.ends_at
+            FROM programmes AS p INDEXED BY programmes_current_window
+            WHERE p.starts_at <= ? AND p.ends_at > ? {allowed}
+                AND NOT EXISTS (
+                    SELECT 1 FROM programmes AS other
+                    WHERE other.channel_id = p.channel_id AND other.id != p.id
+                        AND other.starts_at <= ? AND other.ends_at > ?
+                )
+            ORDER BY {priority} p.channel_sort, p.channel_id, p.starts_at
+            LIMIT ?
+        """
+        parameters = [timestamp, timestamp, *channel_ids, timestamp, timestamp, *channel_ids, VOICE_CANDIDATE_LIMIT]
+        with self._lock:
+            try:
+                rows = self._open_connection().execute(query, parameters).fetchall()
+                return [ProgramMatch(
+                    row["title"], row["channel_id"], row["channel_name"],
+                    datetime.fromtimestamp(row["starts_at"], UTC),
+                    datetime.fromtimestamp(row["ends_at"], UTC),
+                ) for row in rows]
+            except (sqlite3.Error, ValueError, OverflowError):
+                raise CatalogStorageError("The voice catalogue could not be read") from None
 
     def current_on_channel(self, channel_id: str, instant: datetime) -> list[ProgramMatch]:
         """Read at most twenty current programmes through the channel/time index.
