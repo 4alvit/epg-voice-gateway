@@ -542,8 +542,8 @@ progress or human picture/audio acceptance. News was initially left running;
 a later guarded check found the receiver already idle with the same grant, so
 no stop command was sent. Continued playback beyond the observation window is
 not established. Both trials'
-temporary verification logins were revoked. A real microphone invocation of
-the new scene and physical REN playback remain unverified.
+temporary verification logins were revoked. At this stage a real microphone
+invocation of the new scene and physical REN playback remained unverified.
 
 After a fresh idle check, one isolated REN probe fetched a master playlist and
 media playlist with HTTP 200, followed by a bounded one-megabyte transport
@@ -556,8 +556,41 @@ CODECS or RESOLUTION attributes; the HLS version 3 media playlist contained
 three ten-second segments and no discontinuity tags. No declared-codec or
 resolution mismatch was established. These findings rule out the suspected
 interlaced, 50 fps and ten-bit differences in that sample; they do not identify
-the Lenovo failure cause or establish physical playback. No further playback
-command or proxy change followed the probe.
+the Lenovo failure cause or establish physical playback. The probe itself
+issued no playback command or proxy change.
+
+## Rainbow scene microphone acceptance
+
+The user then confirmed that **"Hey Google, activate Rainbow Channel"** was
+recognized, while video still did not start. Fresh HA evidence correlated the
+spoken activation with the exact fixed scene and dispatcher triggers. A new
+media grant reached Lenovo, and the subsequent HA cast error referred to that
+same grant about 5.5 seconds later. The receiver remained idle with position
+zero. No missing-session or upstream-timeout errors appeared after this trigger
+in the captured proxy log window. This establishes microphone routing through
+the fixed scene and a separate playback failure; it does not validate the
+dynamic Channel phrases or attribute the failure to the proxy client limit.
+
+A bounded entry-point comparison then created one fresh grant, fetched its
+signed master once, and sent the same grant's signed child playlist directly
+to Cast. HTTPS, authorization and the underlying channel were preserved. The
+receiver reached `IDLE` with reason `ERROR` about 2.5 seconds after the play
+request and never reached `PLAYING` during sixty seconds. It did not deliver a
+detailed `LOAD_FAILED` code to the passive observer. Bypassing the master therefore
+did not repair playback. All passive observers were stopped afterward.
+
+The installed HA warning about URL reachability is emitted for any native
+`IDLE`/`ERROR` status; its wording is not proof of DNS or network failure. A
+bounded originating-controller diagnostic enabled only
+`pychromecast.controllers`, kept raw logs private, and restored the configured
+`ERROR` level in `finally`. The first trial instead hit HA's thirty-second
+quick-play timeout before replacing the previous media grant. After a guarded
+reset of the test receiver, one alternative REN HD source was tried. It had
+the same guide identity, current programme and time window, but a different
+stream URL. That load failed too; the originating controller reported
+`LOAD_FAILED` without `detailedErrorCode`. The diagnostic logger was restored
+immediately. Neither result identifies a codec or network cause. No other
+receiver was controlled and no proxy configuration was changed.
 
 ## Remaining acceptance
 
@@ -569,11 +602,14 @@ open. The named-channel microphone and physical playback checks are recorded
 separately above. HD compatibility and longer source stability also remain open.
 Alexa CNN playback has the separate household confirmation above. The
 refrigerator's APL attempt was rejected for runtime incompatibility. Physical
-APL playback/controls on a compatible target, Google REN playback and microphone
-recognition remain separate gates. Alexa REN playback now has household
+APL playback/controls on a compatible target and Google REN playback remain
+separate gates. Google microphone recognition of the fixed Rainbow scene has
+the acceptance above; dynamic Channel phrases have not passed. Alexa REN playback has household
 confirmation above. No public integration release or PR merge occurred.
 
 Raw diagnostics and deployment-specific helpers remain private. Earlier native
 observer checks could implicitly launch a Cast receiver and are inconclusive;
-the final checks used HA observation and one guarded non-launching native status
-snapshot at the end. Final channel tests were serialized to respect proxy limits.
+the final earlier catalogue checks used HA observation and one guarded
+non-launching native status snapshot at the end. Later REN trials used the
+bounded passive observers described above. Channel tests were serialized to
+respect proxy limits.
