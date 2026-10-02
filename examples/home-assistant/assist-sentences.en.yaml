@@ -5,7 +5,15 @@ intents:
     data:
       - sentences:
           - "[please] (play|watch|show) {query} on home channels"
-          - "[please] (play|watch|show) {query}"
+          - "[please] (play|watch|show) {query} on [the] (TV|television|display|screen)"
+      - sentences:
+          - "[please] (play|watch|show) [the] (channel|TV channel) {query}"
+        slots:
+          query_prefix: "channel "
+      - sentences:
+          - "[please] (play|watch|show) [the] (programme|program|TV programme|TV program|TV show|series) {query}"
+        slots:
+          query_prefix: "programme "
 lists:
   query:
     wildcard: true
