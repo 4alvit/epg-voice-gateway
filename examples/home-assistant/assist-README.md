@@ -31,27 +31,40 @@ restriction.
    matching language. A third-party LLM conversation agent is not required and
    may not use these custom sentences.
 
-These opt-in examples recognize media verbs only. They do not install a global
-wildcard intent that consumes unrelated home-control requests. Existing custom
-media sentences may overlap; keep one handler for the same phrases. In English,
-the bare `play`, `watch`, and `show` forms intentionally route media requests to
-this gateway. Remove those forms if another media integration should handle them,
-and retain the explicit `on home channels` form. Pause, resume, volume, lighting,
-and other home-control commands remain outside these examples.
+These opt-in examples require explicit TV, display, Home Channels, channel or
+programme context. Unqualified requests such as `play music`, `play the radio`,
+`play my favourite track`, `играй музыку` and `играй Кукутики` remain available to
+other Assist handlers. They do not install a global wildcard intent. Existing
+custom media sentences may overlap; keep one handler for the same phrases.
+Pause, resume, volume, lighting, and other home-control commands remain outside
+these examples.
+
+When updating an older installation, replace its example sentence file and
+remove the broad `[пожалуйста] играй {query}` and
+`[please] (play|watch|show) {query}` patterns wherever they were copied. Leaving an
+old copy loaded still intercepts music requests. Reload custom sentences after
+the change. If a music request produces `This user cannot control the configured
+display.`, first check whether an EPG sentence intercepted it. Expanding display
+permissions does not correct that routing error.
 
 ## Use and verify
 
 Start with typed text in Assist while signed in as a user who can control the
 configured display. Use a channel that exists in your playlist, for example
-`play Example News`, `watch Example News on home channels`, or a current
-programme title. Russian examples include `играй Кукутики`, `включи канал CNN`,
-`покажи передачу Коломбо`, or `включи CNN на экране`. The `включи` and `покажи`
-forms require a media noun or the fixed suffix `на экране` / `на home channels`,
-so `включи свет` remains a normal home-control command. Channel/programme nouns
-are preserved as search constraints. Both languages remove fixed display phrases
-from the query and do not accept arbitrary receiver names. Service responses are
-English. Queries, including any channel/programme prefix, are limited to 200
-characters.
+`play channel Example News`, `watch Example News on home channels`,
+`show Colombo on the TV`, or `play programme Colombo`. Russian examples include
+`играй Кукутики на телевизоре`, `включи канал CNN`, `покажи передачу Коломбо`, or
+`включи CNN на экране`. All verbs require a channel/programme noun or a fixed
+display suffix; `включи свет` and unqualified music requests remain outside this
+EPG intent. Verify both a qualified TV request and an unqualified music request
+after reloading.
+
+Channel/programme noun routes prepend the canonical `channel ` / `programme `
+search constraint through `query_prefix`. The existing display-suffix routes
+remove only the fixed suffix and retain the query text, including any media noun
+already inside it. Both languages accept fixed display phrases only, not
+arbitrary receiver names. Service responses are English. Queries, including any
+channel/programme prefix, are limited to 200 characters.
 
 The service can also be invoked from Developer Tools > Actions:
 

@@ -301,20 +301,35 @@ def test_assist_examples_return_service_response_and_use_explicit_verbs():
                    for sentence in item["sentences"])
 
 
-def test_optional_hassil_media_sentences_do_not_intercept_home_controls():
+def test_optional_hassil_media_sentences_require_tv_context():
     """Run with the deployed HA's Hassil version for grammar acceptance."""
     hassil = pytest.importorskip("hassil")
     examples = COMPONENT.parents[3] / "examples/home-assistant"
     positive = {
         "en": {
-            "play Example News": "Example News",
+            "play channel Example News": "channel Example News",
+            "please watch the TV channel Example News": "channel Example News",
+            "play programme Colombo": "programme Colombo",
+            "watch program Colombo": "programme Colombo",
+            "show TV show Colombo": "programme Colombo",
+            "watch series Colombo": "programme Colombo",
             "watch Example News on home channels": "Example News",
             "show programme Colombo on home channels": "programme Colombo",
+            "please show Colombo on the TV": "Colombo",
+            "play Example News on television": "Example News",
+            "watch Example News on the display": "Example News",
+            "show Example News on screen": "Example News",
         },
         "ru": {
-            "играй Кукутики": "Кукутики",
+            "играй Кукутики на телевизоре": "Кукутики",
+            "пожалуйста играй Кукутики на тв": "Кукутики",
+            "играй Кукутики на экране": "Кукутики",
+            "играй Кукутики на home channels": "Кукутики",
             "включи канал CNN": "channel CNN",
+            "пожалуйста покажи телеканал CNN": "channel CNN",
             "покажи передачу Коломбо": "programme Коломбо",
+            "включи программу Коломбо": "programme Коломбо",
+            "покажи сериал Коломбо": "programme Коломбо",
             "включи CNN на экране": "CNN",
             "включи канал CNN на экране": "канал CNN",
             "покажи Коломбо на home channels": "Коломбо",
@@ -322,9 +337,16 @@ def test_optional_hassil_media_sentences_do_not_intercept_home_controls():
     }
     negative = {
         "en": ["turn on the lights", "turn off the kitchen light", "pause the music",
-               "resume playback", "next track", "set the volume to fifty percent"],
+               "resume playback", "next track", "set the volume to fifty percent",
+               "play music", "please play music", "play the radio", "play radio Jazz FM",
+               "play my favourite track", "play a song", "play my playlist",
+               "play Example News", "watch Colombo", "show Colombo", "play",
+               "play music in the kitchen", "turn on the TV"],
         "ru": ["включи свет", "покажи температуру", "выключи свет", "включи музыку",
-               "пауза", "следующий трек", "сделай громче"],
+               "пауза", "следующий трек", "сделай громче", "играй музыку",
+               "пожалуйста играй музыку", "играй радио", "включи радио",
+               "играй Радио Джаз", "играй любимый трек", "играй песню", "играй плейлист",
+               "играй Кукутики", "покажи Коломбо", "играй", "включи телевизор"],
     }
     for language in positive:
         intents = hassil.Intents.from_dict(yaml.safe_load(
