@@ -207,14 +207,24 @@ The repository's runner is the existing `gha-runner-epg-voice` Deployment in
 `github-actions-epg-voice`. It was provisioned with `kubectl create`; there is no
 complete runner manifest in this repository. The scoped
 [`channel-timeout.patch.json`](../deploy/runner-mp/channel-timeout.patch.json)
-records its worker startup setting without taking ownership of the remaining
-Deployment configuration.
+records its worker startup and CPU request settings without taking ownership of
+the remaining Deployment configuration.
 
 On a busy host, the runner's worker can take longer than the default 30 seconds
 to receive its job. Runner 2.337.0 supports
 [`GITHUB_ACTIONS_RUNNER_CHANNEL_TIMEOUT`](https://github.com/actions/runner/blob/v2.337.0/src/Runner.Listener/JobDispatcher.cs#L50-L74)
 from 30 to 300 seconds. Set it to 120 seconds after a confirmed worker-channel
 timeout. This setting does not change the workflow's individual job timeouts.
+
+The runner also requests one CPU, matching its existing one-CPU limit. Its
+previous `100m` request gave it a disproportionately small scheduling weight
+on a busy node: checkout, dependency setup, and tests all slowed down while
+the container experienced sustained CPU pressure. Raising the request gives
+the runner a fair share without increasing its CPU limit or replica count.
+Before applying, verify that the existing node has room for the new request,
+including other pods, init containers, pod overhead, and namespace quotas.
+The existing `Recreate` strategy replaces one runner rather than scheduling
+an extra replica during the rollout.
 
 First verify that the repository runner is idle and the cluster context is
 correct. A server dry run validates the patch without replacing the runner pod:
@@ -238,6 +248,7 @@ kubectl -n github-actions-epg-voice rollout status deployment/gha-runner-epg-voi
 
 Strategic merge matches the `runner` container and environment variable by name,
 so repeating this patch is idempotent. It preserves the existing image,
-resources, scheduling, registration, token references and all other environment
-variables. After the runner reconnects, retry the affected CI job and verify
+CPU limit, memory settings, node placement configuration, registration, token
+references and all other environment variables. After the runner reconnects,
+retry the affected CI job and verify
 that its worker starts and the complete test suite passes.

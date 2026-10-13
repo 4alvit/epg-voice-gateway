@@ -5,6 +5,11 @@
         "containers": [
           {
             "name": "runner",
+            "resources": {
+              "requests": {
+                "cpu": "1"
+              }
+            },
             "env": [
               {
                 "name": "GITHUB_ACTIONS_RUNNER_CHANNEL_TIMEOUT",
