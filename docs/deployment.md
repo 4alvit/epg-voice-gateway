@@ -233,7 +233,7 @@ Once the runner is idle, apply the same reviewed patch and wait for its rollout:
 kubectl -n github-actions-epg-voice patch deployment gha-runner-epg-voice \
   --type=strategic --patch-file=deploy/runner-mp/channel-timeout.patch.json
 kubectl -n github-actions-epg-voice rollout status deployment/gha-runner-epg-voice \
-  --timeout=180s
+  --timeout=600s
 ```
 
 Strategic merge matches the `runner` container and environment variable by name,
