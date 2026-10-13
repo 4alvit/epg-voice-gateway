@@ -5,13 +5,13 @@ on:
 permissions:
   contents: read
 jobs:
-  python:
+  python_checks:
     if: >-
       github.event.repository.private == true &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, Linux, X64, epg-voice-gateway]
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,11 +24,6 @@ jobs:
           cache-local-path: ${{ runner.temp }}/epg-voice-uv-cache
       - run: uv sync --frozen --extra test
       - run: uv run --frozen ruff check .
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '22'
-      - run: node --test deploy/google-home-worker-vpc/relay.test.mjs
-      - run: node --test deploy/alexa-worker-vpc/relay.test.mjs
       - run: uv run --frozen pytest -q
       - name: Verify runtime lock matches uv.lock
         run: |
@@ -37,3 +32,38 @@ jobs:
       - name: Clean local dependency cache
         if: ${{ always() }}
         run: rm -rf -- "$RUNNER_TEMP/epg-voice-uv-cache"
+  node_checks:
+    if: >-
+      github.event.repository.private == true &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, Linux, X64, epg-voice-gateway]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - run: node --test deploy/google-home-worker-vpc/relay.test.mjs
+      - run: node --test deploy/alexa-worker-vpc/relay.test.mjs
+  # Keep the existing check name while requiring both independent suites.
+  python:
+    needs: [python_checks, node_checks]
+    if: >-
+      always() && github.event.repository.private == true &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, Linux, X64, epg-voice-gateway]
+    timeout-minutes: 5
+    steps:
+      - name: Verify required checks
+        env:
+          PYTHON_RESULT: ${{ needs.python_checks.result }}
+          NODE_RESULT: ${{ needs.node_checks.result }}
+        run: |
+          if [[ "$PYTHON_RESULT" != success || "$NODE_RESULT" != success ]]; then
+            printf 'Required checks did not succeed: Python=%s Node=%s\n' "$PYTHON_RESULT" "$NODE_RESULT" >&2
+            exit 1
+          fi

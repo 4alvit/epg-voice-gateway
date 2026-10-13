@@ -552,14 +552,27 @@ def test_failed_body_verification_never_reaches_resolution_or_session_creation(a
 def test_alexa_deadline_identifies_stage_without_logging_private_request(api, monkeypatch, caplog, stage):
     release = Event()
     real_timeout = asyncio.timeout
-    monkeypatch.setattr(asyncio, "timeout", lambda delay: real_timeout(0.02 if delay == 6 else delay))
+    deadline = {}
+
+    def controlled_timeout(delay):
+        if delay != 6:
+            return real_timeout(delay)
+        deadline["timeout"] = real_timeout(None)
+        deadline["loop"] = asyncio.get_running_loop()
+        return deadline["timeout"]
+
+    monkeypatch.setattr(asyncio, "timeout", controlled_timeout)
 
     def verify(headers, body):
         if stage == "verification":
-            release.wait(2)
+            deadline["loop"].call_soon_threadsafe(deadline["timeout"].reschedule, 0)
+            release.wait()
 
     async def handle(payload):
-        await asyncio.sleep(2)
+        # Expire the real timeout only after reaching the intended stage. A
+        # short wall-clock timeout could expire during verification on busy CI.
+        deadline["timeout"].reschedule(0)
+        await asyncio.Event().wait()
 
     with api(verifier=verify) as run:
         run.app.state.alexa.handle = AsyncMock(side_effect=handle)
@@ -569,6 +582,9 @@ def test_alexa_deadline_identifies_stage_without_logging_private_request(api, mo
             if stage == "verification":
                 run.app.state.alexa.handle.assert_not_awaited()
                 assert run.app.state.verification_slots._value == 3
+            else:
+                run.app.state.alexa.handle.assert_awaited_once()
+            assert deadline["timeout"].expired()
             messages = [record.getMessage() for record in caplog.records
                         if record.name == "epg_voice_gateway.app"]
             assert messages == [f"alexa_request_deadline_exceeded stage={stage}"]
