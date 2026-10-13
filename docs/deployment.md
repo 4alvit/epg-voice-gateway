@@ -200,3 +200,44 @@ Keep the gateway PVC unless you explicitly intend to discard its stored data;
 take a consistent backup before deleting or replacing it.
 Remove a dedicated DNS record or tunnel rule only if it was created for this
 installation. Do not delete a namespace that contains other workloads.
+
+## Existing CI runner
+
+The repository's runner is the existing `gha-runner-epg-voice` Deployment in
+`github-actions-epg-voice`. It was provisioned with `kubectl create`; there is no
+complete runner manifest in this repository. The scoped
+[`channel-timeout.patch.json`](../deploy/runner-mp/channel-timeout.patch.json)
+records its worker startup setting without taking ownership of the remaining
+Deployment configuration.
+
+On a busy host, the runner's worker can take longer than the default 30 seconds
+to receive its job. Runner 2.337.0 supports
+[`GITHUB_ACTIONS_RUNNER_CHANNEL_TIMEOUT`](https://github.com/actions/runner/blob/v2.337.0/src/Runner.Listener/JobDispatcher.cs#L50-L74)
+from 30 to 300 seconds. Set it to 120 seconds after a confirmed worker-channel
+timeout. This setting does not change the workflow's individual job timeouts.
+
+First verify that the repository runner is idle and the cluster context is
+correct. A server dry run validates the patch without replacing the runner pod:
+
+```sh
+gh api repos/4alvit/epg-voice-gateway/actions/runners \
+  --jq '.runners[] | {name, status, busy}'
+kubectl -n github-actions-epg-voice patch deployment gha-runner-epg-voice \
+  --type=strategic --patch-file=deploy/runner-mp/channel-timeout.patch.json \
+  --dry-run=server -o name
+```
+
+Once the runner is idle, apply the same reviewed patch and wait for its rollout:
+
+```sh
+kubectl -n github-actions-epg-voice patch deployment gha-runner-epg-voice \
+  --type=strategic --patch-file=deploy/runner-mp/channel-timeout.patch.json
+kubectl -n github-actions-epg-voice rollout status deployment/gha-runner-epg-voice \
+  --timeout=180s
+```
+
+Strategic merge matches the `runner` container and environment variable by name,
+so repeating this patch is idempotent. It preserves the existing image,
+resources, scheduling, registration, token references and all other environment
+variables. After the runner reconnects, retry the affected CI job and verify
+that its worker starts and the complete test suite passes.

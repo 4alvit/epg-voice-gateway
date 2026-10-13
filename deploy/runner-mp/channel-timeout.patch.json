@@ -1,0 +1,19 @@
+{
+  "spec": {
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "runner",
+            "env": [
+              {
+                "name": "GITHUB_ACTIONS_RUNNER_CHANNEL_TIMEOUT",
+                "value": "120"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
