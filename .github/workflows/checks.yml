@@ -15,6 +15,11 @@ jobs:
     # Bounded private runners need time for cold dependencies and checkout cleanup.
     timeout-minutes: ${{ github.event.repository.private == true && 30 || 20 }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -44,6 +49,11 @@ jobs:
     runs-on: ${{ fromJSON(github.event.repository.private == true && '["self-hosted","Linux","X64","epg-voice-gateway"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -63,6 +73,11 @@ jobs:
     runs-on: ${{ fromJSON(github.event.repository.private == true && '["self-hosted","Linux","X64","epg-voice-gateway"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
       - name: Verify required checks
         env:
           PYTHON_RESULT: ${{ needs.python_checks.result }}
