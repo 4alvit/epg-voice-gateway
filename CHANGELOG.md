@@ -6,6 +6,7 @@ The initial source version provides single-household XMLTV/M3U catalogue import,
 
 ### Unreleased security and quality changes — 2026-10-16
 
+- Require cryptography 50.0.2 and update its hash-locked wheels to OpenSSL 4.0.3, including the upstream fixes for CVE-2026-84783. Verify the actual wheel's native OpenSSL version in the installed-container smoke check; the system OpenSSL and optional Cloudflare provider remain separate audit boundaries.
 - Replace the container's pip 25.0.1 with the hash-pinned official 26.2.1 wheel before package installation, addressing the old installer findings including CVE-2026-13346 and CVE-2026-8643. Pin the build backend closure and prevent silent isolated build dependency downloads. OS and optional-provider findings remain under separate review.
 - Include the project license in the Docker build context and require a real installed-image startup/authentication smoke check in public CI.
 

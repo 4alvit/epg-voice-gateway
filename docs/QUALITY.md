@@ -58,3 +58,18 @@ rejects all three known XZ advisory identifiers. The complete finding report and
 CycloneDX SBOM are retained as `container-security-evidence`; remaining findings
 are not filtered out or treated as fixed. This narrow repair does not establish
 whole-image vulnerability clearance or qualify the optional Cloudflare paths.
+
+### Native cryptography wheel update — 2026-10-16
+
+The runtime floor and both dependency locks now select `cryptography 50.0.2`.
+Its official Linux wheel embeds OpenSSL 4.0.3, replacing the OpenSSL 4.0.2
+embedded in the previous 50.0.1 wheel. The
+[upstream changelog](https://cryptography.io/en/latest/changelog/#v50-0-2)
+records the native-library update, including the OpenSSL fix for
+[CVE-2026-84783](https://openssl-library.org/news/vulnerabilities/#CVE-2026-84783).
+The required installed-image smoke check reads the running cryptography
+backend's native version and rejects versions below 4.0.3. Existing certificate,
+Alexa signature and complete HTTPS workflow tests exercise compatibility.
+This check concerns the wheel's embedded OpenSSL; CPython's system TLS library,
+remaining image findings and optional Cloudflare deployment are separate audit
+boundaries. It does not claim a new release or complete vulnerability clearance.
