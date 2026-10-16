@@ -1,5 +1,7 @@
 # Roadmap
 
+Planning horizon: October 2026 through October 2027.
+
 Current scope: private single-household programme/channel search using existing HLS and XMLTV sources, expiring media sessions and optional voice adapters. The direct API remains useful without a physical voice device.
 
 Priorities are to keep input/authentication boundaries and dependency checks current, retain regression tests for catalogue/media failures, validate supported private deployment upgrades, and define a stable release acceptance procedure. Public multi-household operation requires account linking and per-household authorization before being offered.
