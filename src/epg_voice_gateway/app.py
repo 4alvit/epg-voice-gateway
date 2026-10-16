@@ -24,6 +24,7 @@ from .errors import GatewayError, PlaybackUnavailable
 from .google import HomeAssistantCaster
 from .media import MediaError, MediaSessionStore
 from .signature import verify_amazon_request
+from .tls_policy import https_context
 
 LOGGER = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -109,6 +110,17 @@ def _programme(match):
     return result
 
 
+def create_http_client() -> httpx.AsyncClient:
+    """Own the verified TLS context for guide, media and HA requests."""
+    return httpx.AsyncClient(
+        verify=https_context(),
+        follow_redirects=False,
+        trust_env=False,
+        timeout=httpx.Timeout(20, connect=3),
+        limits=httpx.Limits(max_connections=32, max_keepalive_connections=16),
+    )
+
+
 def create_app(
     settings: Settings | None = None,
     *,
@@ -120,12 +132,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app):
         config = settings or Settings()
-        http = client or httpx.AsyncClient(
-            follow_redirects=False,
-            trust_env=False,
-            timeout=httpx.Timeout(20, connect=3),
-            limits=httpx.Limits(max_connections=32, max_keepalive_connections=16),
-        )
+        http = client or create_http_client()
         guide = catalog or Catalog(config, http)
         sessions = MediaSessionStore(
             config.hls_proxy_url, config.media_base_url,

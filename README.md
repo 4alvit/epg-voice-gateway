@@ -1,5 +1,7 @@
 # EPG Voice Gateway
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15583/badge)](https://www.bestpractices.dev/projects/15583)
+
 Find a channel or a programme that is airing now and play it on a compatible Alexa
 screen or Google Cast device. This service consumes an **existing HLS Proxy**
 and XMLTV guide. It does not depend on OttPlay or install a media proxy.
@@ -253,3 +255,7 @@ then rerun the tests and rebuild the image.
 Transport security does not convert codecs or resolution. Validate the actual
 channel against the receiving device, including HLS encryption when applicable.
 Use a compatible channel variant or separately managed transcoding if needed.
+
+## Project maintenance and security
+
+See [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), [Code of Conduct](CODE_OF_CONDUCT.md), [Governance](GOVERNANCE.md), [Roadmap](ROADMAP.md), [Release acceptance](RELEASING.md), [Changelog](CHANGELOG.md), [quality evidence](docs/QUALITY.md) and the [complete private HTTPS API](docs/tls-policy.md). OpenSSF answers describe verified capabilities and explicitly retain unmet Silver requirements, including backup access continuity.

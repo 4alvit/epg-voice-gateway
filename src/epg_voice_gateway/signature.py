@@ -4,7 +4,9 @@ from collections import OrderedDict
 from collections.abc import Callable
 from threading import Lock
 from time import monotonic
-from urllib.request import HTTPRedirectHandler, ProxyHandler, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, build_opener
+
+from .tls_policy import https_context
 
 CERTIFICATE_CACHE_ENTRIES = 8
 CERTIFICATE_CACHE_TTL_SECONDS = 300
@@ -68,6 +70,16 @@ class _NoRedirects(HTTPRedirectHandler):
         return None
 
 
+def _download_certificate_bytes(cert_url: str) -> bytes:
+    """Bound the certificate fetch and verify TLS before any HTTP request."""
+    with build_opener(ProxyHandler({}), _NoRedirects(),
+                      HTTPSHandler(context=https_context())).open(cert_url, timeout=2) as response:
+        certificate = response.read(16385)
+        if response.status != 200 or len(certificate) > 16384:
+            raise ValueError("Invalid certificate response")
+    return certificate
+
+
 def verify_amazon_request(headers: dict[str, str], body: str) -> None:
     from ask_sdk_core.serialize import DefaultSerializer
     from ask_sdk_model import RequestEnvelope
@@ -84,10 +96,7 @@ def verify_amazon_request(headers: dict[str, str], body: str) -> None:
         def _download_verified_chain(self, cert_url):
             # Socket timeouts do not bound DNS or the complete exchange. The
             # gateway also caps in-flight verification threads and HTTP duration.
-            with build_opener(ProxyHandler({}), _NoRedirects()).open(cert_url, timeout=2) as response:
-                certificate = response.read(16385)
-                if response.status != 200 or len(certificate) > 16384:
-                    raise ValueError("Invalid certificate response")
+            certificate = _download_certificate_bytes(cert_url)
             self._validate_cert_chain(certificate)
             self._validate_end_certificate(x509.load_pem_x509_certificate(certificate))
             return certificate

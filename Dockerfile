@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
-COPY pyproject.toml README.md requirements.lock ./
+COPY pyproject.toml README.md LICENSE requirements.lock ./
 COPY src ./src
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
     && pip install --no-cache-dir --no-deps . \

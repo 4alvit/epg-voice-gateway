@@ -1,0 +1,11 @@
+# Security policy
+
+This is an actively maintained, single-household development service. The current main branch is supported. There is no stable public release or multi-household security guarantee. Update by reviewing changes, backing up private configuration/database, rebuilding from the reviewed commit and testing a private deployment before replacing the running service. The latest source is https://github.com/4alvit/epg-voice-gateway.
+
+Report suspected vulnerabilities privately using https://github.com/4alvit/epg-voice-gateway/security/advisories/new or email alvit.work@gmail.com. Include affected commit/version, a minimal synthetic reproduction, impact and a safe way to contact you. Never include real credentials or live media. Private vulnerability reporting was enabled and verified on 2026-10-16.
+
+The maintainer aims to acknowledge within 7 days, investigate severity and affected versions, and agree a fix/disclosure timeline with the reporter. Critical issues are prioritized immediately; other significant known vulnerabilities are tracked and fixed promptly, normally within 60 days. Involve affected upstream maintainers privately where needed. Test the fix, review it, publish release notes with applicable CVE/GHSA identifiers and affected/fixed versions, and credit reporters unless they request anonymity. If no acknowledgement arrives, follow up using the other private channel. These are process targets, not a staffed service-level guarantee.
+
+Keep API tokens and HMAC keys independent, randomly generated and at least 32 bytes; use a secret manager or mode-0600 private environment file. Do not log bearer session URLs. Limit service exposure and privileges. The direct HTTPS profile is documented in docs/tls-policy.md. Existing LAN HTTP, HA, Alexa and Worker deployments have distinct transport and identity boundaries; do not infer public-service readiness from the private profile.
+
+Dependabot monitors Python and Actions dependencies; locked updates require review, tests and an advisory check. CI runs Ruff security rules over first-party Python and CodeQL over Python, JavaScript and workflows. Tests include malicious input, authorization and actual TLS boundaries. Native dependency internals are not claimed memory-safe solely because the application is Python.

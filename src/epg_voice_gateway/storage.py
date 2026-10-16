@@ -317,6 +317,7 @@ class CatalogStore:
             return []
         match_expression = " OR ".join('"' + phrase.replace('"', '""') + '"' for phrase in phrases)
         guards = " OR ".join("instr(' ' || p.normalized_title || ' ', ?) > 0" for _ in phrases)
+        # Only fixed SQL clauses/placeholder counts are interpolated; values are bound.
         query = f"""
             SELECT p.title, p.channel_id, p.channel_name, p.starts_at, p.ends_at
             FROM programme_fts JOIN programmes AS p ON p.id = programme_fts.rowid
@@ -326,7 +327,7 @@ class CatalogStore:
                 {"AND p.normalized_title = ?" if exact_title is not None else ""}
             ORDER BY p.channel_sort, p.starts_at, p.channel_id
             LIMIT ?
-        """
+        """  # noqa: S608
         parameters = [
             match_expression, timestamp, timestamp,
             *(" " + phrase + " " for phrase in phrases),
@@ -366,6 +367,7 @@ class CatalogStore:
             "CASE p.channel_id " + " ".join("WHEN ? THEN " + str(index) for index, _ in enumerate(channel_ids)) + " END, "
             if channel_ids else ""
         )
+        # Only fixed SQL clauses/placeholder counts are interpolated; values are bound.
         query = f"""
             SELECT p.title, p.channel_id, p.channel_name, p.starts_at, p.ends_at
             FROM programmes AS p INDEXED BY programmes_current_window
@@ -377,7 +379,7 @@ class CatalogStore:
                 )
             ORDER BY {priority} p.channel_sort, p.channel_id, p.starts_at
             LIMIT ?
-        """
+        """  # noqa: S608
         parameters = [timestamp, timestamp, *channel_ids, timestamp, timestamp, *channel_ids, VOICE_CANDIDATE_LIMIT]
         with self._lock:
             try:
@@ -419,6 +421,7 @@ class CatalogStore:
                 priority = " ".join(
                     "WHEN ? THEN " + str(index) for index, _ in enumerate(channel_ids)
                 )
+                # Only fixed placeholders and generated integer ranks are interpolated.
                 rows = connection.execute(f"""
                     SELECT c.channel_id, c.name, c.epg_name, (
                         SELECT COUNT(*) FROM (
@@ -431,7 +434,7 @@ class CatalogStore:
                     FROM channels AS c
                     WHERE c.channel_id IN ({placeholders})
                     ORDER BY CASE c.channel_id {priority} END
-                """, (timestamp, timestamp, *channel_ids, *channel_ids)).fetchall()
+                """, (timestamp, timestamp, *channel_ids, *channel_ids)).fetchall()  # noqa: S608
                 return [ChannelCandidate(
                     row["channel_id"], row["name"], row["epg_name"], row["current_count"] == 1,
                 ) for row in rows]

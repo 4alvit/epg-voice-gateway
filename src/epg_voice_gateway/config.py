@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     signing_key: SecretStr
     hls_proxy_url: str
     media_base_url: str
+    require_https: bool = False
     playlist_path: str = "/playlist.m3u8"
     xmltv_urls: list[str] = Field(min_length=1, max_length=8)
     database_path: str = ":memory:"
@@ -167,6 +168,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def coherent_config(self):
+        if self.require_https:
+            endpoints = [self.hls_proxy_url, self.media_base_url, *self.xmltv_urls]
+            if self.ha_url:
+                endpoints.append(self.ha_url)
+            if any(urlsplit(value).scheme != "https" for value in endpoints):
+                raise ValueError("HTTPS-only mode requires HTTPS for every configured upstream")
         if self.max_stale_seconds < self.refresh_seconds:
             raise ValueError("The stale-data window must cover the refresh interval")
         if bool(self.ha_url) != bool(self.ha_token.get_secret_value()):
