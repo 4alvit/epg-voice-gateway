@@ -26,6 +26,7 @@ jobs:
           cache-local-path: ${{ runner.temp }}/epg-voice-uv-cache
       - run: uv sync --frozen --extra test
       - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff check src integrations --select S
       - run: uv run --frozen pytest -q
       - name: Verify runtime lock matches uv.lock
         run: |
