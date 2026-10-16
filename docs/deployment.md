@@ -252,3 +252,20 @@ CPU limit, memory settings, node placement configuration, registration, token
 references and all other environment variables. After the runner reconnects,
 retry the affected CI job and verify
 that its worker starts and the complete test suite passes.
+
+
+## GitHub runner boundary when publishing the repository
+
+The Checks workflow preserves the existing self-hosted runner for private,
+same-repository contributions. Public repositories run Python, Node and the
+required `python` gate on GitHub-hosted Ubuntu, including pull requests from
+forks. Both suites must succeed; a skipped or cancelled suite cannot pass the gate.
+Checkout credentials are not persisted and the workflow token is read-only.
+
+Before changing repository visibility, remove the repository's access to its
+private self-hosted runner registration, or enforce an equivalent runner-group
+restriction outside the repository. The workflow's runner expression alone is
+not an access-control boundary: a fork can propose changes to workflow files.
+Do not allow public pull requests onto a private infrastructure runner. Retain
+that runner only for other explicitly trusted private workloads. This source
+change does not reconfigure or stop a running runner.
