@@ -40,3 +40,21 @@ this local package result does not stand in for that result.
 The base-image scan also contains OS findings requiring separate applicability
 review. This installer change does not claim an advisory-free image, coverage of
 other architectures, or remediation of the optional Cloudflare provider.
+
+### Container XZ security update — 2026-10-16
+
+The pinned base also contains `liblzma5` version `5.8.1-1+deb13u1`, affected by
+[DSA-6549-1](https://security-tracker.debian.org/tracker/DSA-6549-1) and upstream
+[GHSA-5qpq-xqfv-j9pg](https://github.com/tukaani-project/xz/security/advisories/GHSA-5qpq-xqfv-j9pg).
+The Dockerfile upgrades only that existing library to Debian's exact fixed
+revision `5.8.1-1+deb13u2` using the authenticated Debian repositories, then
+removes the downloaded package cache and package lists. It retains the base
+digest and all installer, build and runtime dependency locks.
+
+The required public container job builds the actual image, runs the existing
+network-disabled startup/authentication smoke test as UID 10001, and scans that
+image with pinned Trivy. Its gate requires the exact fixed library revision and
+rejects all three known XZ advisory identifiers. The complete finding report and
+CycloneDX SBOM are retained as `container-security-evidence`; remaining findings
+are not filtered out or treated as fixed. This narrow repair does not establish
+whole-image vulnerability clearance or qualify the optional Cloudflare paths.

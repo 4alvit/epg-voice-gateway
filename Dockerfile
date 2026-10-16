@@ -5,6 +5,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
+# The pinned base predates DSA-6549-1. Keep Debian signature verification enabled
+# and upgrade only the existing runtime library to the exact security revision.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends --only-upgrade liblzma5=5.8.1-1+deb13u2 \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb
+
 # Bootstrap only the official, hash-verified wheel before resolving/building anything.
 COPY container/requirements-installer.txt /tmp/requirements-installer.txt
 RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
