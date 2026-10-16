@@ -19,7 +19,9 @@ def test_ci_gate_requires_both_suites_to_succeed(python_result, node_result):
     gate = yaml.safe_load(WORKFLOW.read_text())["jobs"]["python"]
     assert set(gate["needs"]) == {"python_checks", "node_checks"}
     assert gate["if"].startswith("always() &&")
-    step = gate["steps"][0]
+    gate_steps = [step for step in gate["steps"] if step.get("name") == "Verify required checks"]
+    assert len(gate_steps) == 1
+    step = gate_steps[0]
     assert step["env"] == {
         "PYTHON_RESULT": "${{ needs.python_checks.result }}",
         "NODE_RESULT": "${{ needs.node_checks.result }}",
