@@ -95,3 +95,15 @@ def test_public_forks_never_select_private_runner(private, event, same_repositor
                 assert step["with"]["persist-credentials"] is False
     assert workflow["permissions"] == {"contents": "read"}
     assert "pull_request_target" not in workflow.get(True, workflow.get("on", {}))
+
+
+@pytest.mark.parametrize("private, expected", [(True, 30), (False, 20), (None, 20)])
+def test_python_timeout_reserves_private_runner_cleanup(private, expected):
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+    actual = _workflow_expression(
+        jobs["python_checks"]["timeout-minutes"],
+        {"github.event.repository.private": private},
+    )
+    assert actual == expected
+    assert jobs["node_checks"]["timeout-minutes"] == 20
+    assert jobs["python"]["timeout-minutes"] == 5
