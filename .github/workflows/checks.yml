@@ -7,10 +7,11 @@ permissions:
 jobs:
   python_checks:
     if: >-
-      github.event.repository.private == true &&
-      (github.event_name != 'pull_request' ||
+      (github.event.repository.private != true ||
+       github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: [self-hosted, Linux, X64, epg-voice-gateway]
+    # Private installations retain their trusted runner. Public PRs use hosted VMs.
+    runs-on: ${{ fromJSON(github.event.repository.private == true && '["self-hosted","Linux","X64","epg-voice-gateway"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,10 +35,11 @@ jobs:
         run: rm -rf -- "$RUNNER_TEMP/epg-voice-uv-cache"
   node_checks:
     if: >-
-      github.event.repository.private == true &&
-      (github.event_name != 'pull_request' ||
+      (github.event.repository.private != true ||
+       github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: [self-hosted, Linux, X64, epg-voice-gateway]
+    # Private installations retain their trusted runner. Public PRs use hosted VMs.
+    runs-on: ${{ fromJSON(github.event.repository.private == true && '["self-hosted","Linux","X64","epg-voice-gateway"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,10 +54,11 @@ jobs:
   python:
     needs: [python_checks, node_checks]
     if: >-
-      always() && github.event.repository.private == true &&
-      (github.event_name != 'pull_request' ||
+      always() && (github.event.repository.private != true ||
+       github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: [self-hosted, Linux, X64, epg-voice-gateway]
+    # Private installations retain their trusted runner. Public PRs use hosted VMs.
+    runs-on: ${{ fromJSON(github.event.repository.private == true && '["self-hosted","Linux","X64","epg-voice-gateway"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
       - name: Verify required checks
