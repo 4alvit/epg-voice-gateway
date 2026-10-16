@@ -1,5 +1,7 @@
 # EPG Voice Gateway
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15583/badge)](https://www.bestpractices.dev/projects/15583)
+
 Find a channel or a programme that is airing now and play it on a compatible Alexa
 screen or Google Cast device. This service consumes an **existing HLS Proxy**
 and XMLTV guide. It does not depend on OttPlay or install a media proxy.
