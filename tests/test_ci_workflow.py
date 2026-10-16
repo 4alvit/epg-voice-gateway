@@ -15,9 +15,11 @@ RESULTS = ("success", "failure", "cancelled", "skipped", "")
 
 @pytest.mark.parametrize("python_result", RESULTS)
 @pytest.mark.parametrize("node_result", RESULTS)
-def test_ci_gate_requires_both_suites_to_succeed(python_result, node_result):
+@pytest.mark.parametrize("container_result", RESULTS)
+@pytest.mark.parametrize("public", ["true", "false"])
+def test_ci_gate_requires_all_applicable_suites(python_result, node_result, container_result, public):
     gate = yaml.safe_load(WORKFLOW.read_text())["jobs"]["python"]
-    assert set(gate["needs"]) == {"python_checks", "node_checks"}
+    assert set(gate["needs"]) == {"python_checks", "node_checks", "container"}
     assert gate["if"].startswith("always() &&")
     gate_steps = [step for step in gate["steps"] if step.get("name") == "Verify required checks"]
     assert len(gate_steps) == 1
@@ -25,15 +27,21 @@ def test_ci_gate_requires_both_suites_to_succeed(python_result, node_result):
     assert step["env"] == {
         "PYTHON_RESULT": "${{ needs.python_checks.result }}",
         "NODE_RESULT": "${{ needs.node_checks.result }}",
+        "CONTAINER_RESULT": "${{ needs.container.result }}",
+        "PUBLIC_REPOSITORY": "${{ github.event.repository.private != true }}",
     }
     result = subprocess.run(
         ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]],
-        env={**os.environ, "PYTHON_RESULT": python_result, "NODE_RESULT": node_result},
+        env={**os.environ, "PYTHON_RESULT": python_result, "NODE_RESULT": node_result,
+             "CONTAINER_RESULT": container_result, "PUBLIC_REPOSITORY": public},
         capture_output=True,
         text=True,
         check=False,
     )
-    assert (result.returncode == 0) is (python_result == node_result == "success")
+    assert (result.returncode == 0) is (
+        python_result == node_result == "success"
+        and (public == "false" or container_result == "success")
+    )
 
 
 def _workflow_expression(expression, context):
@@ -85,7 +93,11 @@ def test_public_forks_never_select_private_runner(private, event, same_repositor
         "github.repository": "example/project",
     }
     permitted = not private or event != "pull_request" or same_repository
-    for job in workflow["jobs"].values():
+    for name, job in workflow["jobs"].items():
+        if name == "container":
+            assert _workflow_expression(job["if"], context) is (not private)
+            assert job["runs-on"] == "ubuntu-latest"
+            continue
         assert _workflow_expression(job["if"], context) is permitted
         labels = _workflow_expression(job["runs-on"], context)
         if private:
