@@ -14,3 +14,8 @@ updates:
     directory: /
     schedule:
       interval: daily
+
+  - package-ecosystem: pip
+    directory: /container
+    schedule:
+      interval: daily

@@ -1,0 +1,4 @@
+# Container installer and all PEP 517 backends used by this project/oscrypto.
+hatchling>=1.27,<2
+setuptools
+wheel

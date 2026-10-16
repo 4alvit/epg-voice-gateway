@@ -250,7 +250,13 @@ uv run --extra test ruff check .
 `uv.lock` pins development dependencies. The container installs runtime packages
 from the hash-checked `requirements.lock`. To update both deliberately, run
 `uv lock` and `uv export --frozen --no-dev --no-emit-project -o requirements.lock`,
-then rerun the tests and rebuild the image.
+then rerun the tests and rebuild the image. Container installer and build backends
+have separate hash-checked locks in `container/`. Update their reviewed inputs,
+regenerate `container/requirements-build.txt` with the command recorded in that
+file, and verify the official installer wheel hash before changing its pin.
+Public CI builds the actual Dockerfile and exercises startup and authentication
+as the unprivileged image user with network access disabled. These checks do not
+clear the separate operating-system or optional Terraform provider findings.
 
 Transport security does not convert codecs or resolution. Validate the actual
 channel against the receiving device, including HLS encryption when applicable.

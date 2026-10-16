@@ -62,9 +62,26 @@ jobs:
           node-version: '22'
       - run: node --test deploy/google-home-worker-vpc/relay.test.mjs
       - run: node --test deploy/alexa-worker-vpc/relay.test.mjs
-  # Keep the existing check name while requiring both independent suites.
+  container:
+    if: github.event.repository.private != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the actual installed image
+        run: docker build --progress=plain --tag epg-voice-gateway:ci .
+      - name: Verify installed startup and authentication without network access
+        run: docker run --rm --network none --interactive --entrypoint python epg-voice-gateway:ci - < container/smoke.py
+
+  # Keep the existing check name while requiring each public build/test suite.
   python:
-    needs: [python_checks, node_checks]
+    needs: [python_checks, node_checks, container]
     if: >-
       always() && (github.event.repository.private != true ||
        github.event_name != 'pull_request' ||
@@ -82,8 +99,10 @@ jobs:
         env:
           PYTHON_RESULT: ${{ needs.python_checks.result }}
           NODE_RESULT: ${{ needs.node_checks.result }}
+          CONTAINER_RESULT: ${{ needs.container.result }}
+          PUBLIC_REPOSITORY: ${{ github.event.repository.private != true }}
         run: |
-          if [[ "$PYTHON_RESULT" != success || "$NODE_RESULT" != success ]]; then
-            printf 'Required checks did not succeed: Python=%s Node=%s\n' "$PYTHON_RESULT" "$NODE_RESULT" >&2
+          if [[ "$PYTHON_RESULT" != success || "$NODE_RESULT" != success || ( "$PUBLIC_REPOSITORY" == true && "$CONTAINER_RESULT" != success ) ]]; then
+            printf 'Required checks did not succeed: Python=%s Node=%s Container=%s\n' "$PYTHON_RESULT" "$NODE_RESULT" "$CONTAINER_RESULT" >&2
             exit 1
           fi

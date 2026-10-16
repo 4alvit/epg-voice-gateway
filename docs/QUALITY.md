@@ -14,6 +14,29 @@ The installed-environment pip-audit review on 2026-10-16 found no published vuln
 
 ### Dependency-audit boundary
 
-The 45-dependency result covers the selected installed Python environment. It does not establish a complete build or deployment dependency result: isolated build requirements (`hatchling`), operating-system packages in the pinned `python:3.12-slim` image, and the Cloudflare provider 5.24.0 pinned by both optional Worker Terraform deployments require separate inventories and advisory assessment. The Docker build currently resolves its isolated build requirements independently of the runtime lock. Do not interpret the direct HTTPS profile or an empty GitHub alert list as clearing these other supported paths.
+The 45-dependency result covers the selected installed Python environment. It does not establish a complete build or deployment dependency result: isolated build requirements (`hatchling`), operating-system packages in the pinned `python:3.12-slim` image, and the Cloudflare provider 5.24.0 pinned by both optional Worker Terraform deployments require separate inventories and advisory assessment. The Docker build now uses separate hash-checked installer/build locks and disables isolated backend resolution. This makes those inputs explicit; their audit and the image OS inventory remain separate from the original 45-dependency runtime result. Do not interpret the direct HTTPS profile or an empty GitHub alert list as clearing these other supported paths.
 
 Before treating the whole project as meeting vulnerability-remediation criteria, record the exact resolved build packages and container platform/digest, scan their dependencies, and review the provider executable and its Go dependencies for applicable advisories. Upgrade or provide a fully tested compatible replacement for affected components. Keep unverified criteria marked unmet until this work is complete; a transport test alone is not a dependency audit.
+
+### Container installer remediation — 2026-10-16
+
+The pinned Linux/amd64 base image contains pip 25.0.1. A fresh Trivy inventory
+identified six pip advisories, including five medium findings older than 60 days.
+CVE-2025-8869 concerns a pre-PEP 706 extraction fallback and does not apply to that
+Python 3.12 path; this is not a dismissal of the other findings. The Dockerfile
+now installs only the hash-pinned official pip 26.2.1 wheel before other packages,
+then the locked build backend closure. Runtime and local-project installation
+cannot silently resolve a second isolated backend environment. The upstream
+[release notes](https://pip.pypa.io/en/stable/news/) document the patched versions,
+including index filename decoding and entry-point path handling fixes.
+
+The fresh macOS Python 3.12.14 installed-environment audit after the locked build
+checked 44 published dependencies and found no known vulnerabilities; the local
+project was correctly excluded from PyPI matching. Both the pinned oscrypto
+source archive and the application wheel built with isolation disabled, and
+`pip check` passed. Hosted CI separately verifies the actual Linux container;
+this local package result does not stand in for that result.
+
+The base-image scan also contains OS findings requiring separate applicability
+review. This installer change does not claim an advisory-free image, coverage of
+other architectures, or remediation of the optional Cloudflare provider.

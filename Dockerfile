@@ -5,10 +5,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
+# Bootstrap only the official, hash-verified wheel before resolving/building anything.
+COPY container/requirements-installer.txt /tmp/requirements-installer.txt
+RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
+    --only-binary=:all: --no-deps --require-hashes -r /tmp/requirements-installer.txt
+COPY container/requirements-build.txt /tmp/requirements-build.txt
+RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
+    --only-binary=:all: --require-hashes -r /tmp/requirements-build.txt
 COPY pyproject.toml README.md LICENSE requirements.lock ./
 COPY src ./src
-RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
-    && pip install --no-cache-dir --no-deps . \
+RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
+    --no-build-isolation --require-hashes -r requirements.lock \
+    && python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
+        --no-build-isolation --no-deps . \
+    && python -m pip --isolated --disable-pip-version-check check \
     && groupadd --gid 10001 gateway \
     && useradd --uid 10001 --gid 10001 --no-create-home gateway
 
