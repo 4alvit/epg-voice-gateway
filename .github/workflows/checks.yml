@@ -116,9 +116,72 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  worker_profile:
+    if: github.event.repository.private != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the exact qualified shared profile
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: victron-venus/terraform-cloudflare-inverter-gateway
+          ref: adc6d9f833bb4b42f3957bdedf5b6fed4ad21482
+          path: .shared-cloudflare
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: '0.12.7'
+          python-version: '3.12'
+          enable-cache: false
+      - run: uv sync --frozen --extra test
+      - name: Reproduce the independently qualified production bytes
+        run: |
+          uv run --frozen python scripts/worker_profile.py --shared-source .shared-cloudflare build --go "$(command -v go)" --output "$RUNNER_TEMP/qualified-provider"
+          cp .shared-cloudflare/security/provider/NOTICE "$RUNNER_TEMP/qualified-provider/UPSTREAM-NOTICE"
+          cp .shared-cloudflare/LICENSE "$RUNNER_TEMP/qualified-provider/SHARED-MIT-LICENSE"
+      - name: Prepare the pinned FLOSS engine and shared mirror dependency
+        run: |
+          mkdir -p "$RUNNER_TEMP/worker-tools"
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_amd64.zip -o "$RUNNER_TEMP/worker-tools/tofu.zip"
+          printf '%s  %s\n' '8ccbc6f8ee21d2827715f3c6e08a9b3e0209b1e62057c05067ef117e047c1a80' "$RUNNER_TEMP/worker-tools/tofu.zip" | sha256sum --check --strict
+          unzip "$RUNNER_TEMP/worker-tools/tofu.zip" -d "$RUNNER_TEMP/worker-tools"
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location https://releases.hashicorp.com/terraform-provider-local/2.9.1/terraform-provider-local_2.9.1_linux_amd64.zip -o "$RUNNER_TEMP/worker-tools/local.zip"
+      - name: Verify actual Worker schemas, mock plans and shared runtime TLS
+        run: |
+          uv run --frozen python scripts/worker_profile.py --shared-source .shared-cloudflare check --provider-dir "$RUNNER_TEMP/qualified-provider" --tofu "$RUNNER_TEMP/worker-tools/tofu" --local-provider-archive "$RUNNER_TEMP/worker-tools/local.zip"
+          uv run --frozen python scripts/worker_profile.py --shared-source .shared-cloudflare tls --provider-dir "$RUNNER_TEMP/qualified-provider" --tofu "$RUNNER_TEMP/worker-tools/tofu" --local-provider-archive "$RUNNER_TEMP/worker-tools/local.zip"
+      - name: Retain successful qualified provider for explicit operator use
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: epg-qualified-worker-provider-linux-amd64
+          path: ${{ runner.temp }}/qualified-provider/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: worker-profile-diagnostics
+          path: |
+            ${{ runner.temp }}/qualified-provider/*.log
+            ${{ runner.temp }}/qualified-provider/provenance.json
+          if-no-files-found: warn
+          retention-days: 30
+
   # Keep the existing check name while requiring each public build/test suite.
   python:
-    needs: [python_checks, node_checks, container]
+    needs: [python_checks, node_checks, container, worker_profile]
     if: >-
       always() && (github.event.repository.private != true ||
        github.event_name != 'pull_request' ||
@@ -137,9 +200,10 @@ jobs:
           PYTHON_RESULT: ${{ needs.python_checks.result }}
           NODE_RESULT: ${{ needs.node_checks.result }}
           CONTAINER_RESULT: ${{ needs.container.result }}
+          WORKER_RESULT: ${{ needs.worker_profile.result }}
           PUBLIC_REPOSITORY: ${{ github.event.repository.private != true }}
         run: |
-          if [[ "$PYTHON_RESULT" != success || "$NODE_RESULT" != success || ( "$PUBLIC_REPOSITORY" == true && "$CONTAINER_RESULT" != success ) ]]; then
-            printf 'Required checks did not succeed: Python=%s Node=%s Container=%s\n' "$PYTHON_RESULT" "$NODE_RESULT" "$CONTAINER_RESULT" >&2
+          if [[ "$PYTHON_RESULT" != success || "$NODE_RESULT" != success || ( "$PUBLIC_REPOSITORY" == true && ( "$CONTAINER_RESULT" != success || "$WORKER_RESULT" != success ) ) ]]; then
+            printf 'Required checks did not succeed: Python=%s Node=%s Container=%s Worker=%s\n' "$PYTHON_RESULT" "$NODE_RESULT" "$CONTAINER_RESULT" "$WORKER_RESULT" >&2
             exit 1
           fi

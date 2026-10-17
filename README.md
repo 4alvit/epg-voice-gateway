@@ -159,6 +159,8 @@ The gateway rejects requests when verification exceeds its deadline and logs onl
 the fixed failure stage. Reliable DNS from the gateway pod is still required for
 cold downloads and refreshes; a certificate cache does not repair cluster networking.
 
+For a new Worker deployment, use the [qualified Cloudflare provisioning profile](docs/WORKER_SECURE_PROFILE.md), which retains both relay modules and verifies the shared provider against an independently pinned production hash.
+
 For Cloudflare deployments, use the dedicated
 [Alexa HTTPS relay and parameterized Terraform](deploy/alexa-worker-vpc/README.md).
 Plan A publishes only `POST /alexa` through Workers VPC to the private gateway.

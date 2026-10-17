@@ -1,5 +1,11 @@
 # Optional Google server-request relay
 
+For new provisioning, use the [qualified Worker profile](../../docs/WORKER_SECURE_PROFILE.md).
+It retains this module's features while replacing the old registry provider's
+known vulnerable client dependencies. Existing Terraform state is retained; adopting the profile does not silently
+upgrade an already installed provider.
+
+
 This template addresses a confirmed failure in which Cloudflare Bot Fight Mode
 challenged Google's OAuth code exchange. A browser login succeeded, but Google
 received an HTML HTTP 403 from `/auth/token` instead of HA's JSON response.
@@ -109,14 +115,11 @@ from `CLOUDFLARE_API_TOKEN`, not variables or committed files. Copy
 [`terraform.tfvars.example`](terraform/terraform.tfvars.example) to a protected
 private file and fill in your existing account, tunnel and namespace.
 
-From this directory:
+For a new deployment, follow the [qualified Worker provisioning commands](../../docs/WORKER_SECURE_PROFILE.md#new-workspace-and-deployment).
+Use that verified provider for `validate`, `plan` and `apply`; direct registry
+installation selects the older vulnerable binary. Existing state owners must
+review a controlled migration before changing provider checksums or backends.
 
-```sh
-terraform -chdir=terraform init
-terraform -chdir=terraform validate
-terraform -chdir=terraform plan -var-file=/private/path/relay.tfvars \
-  -out=/private/path/relay.tfplan
-```
 
 Protect local state and plans; use your established state backend or keep the
 working directory outside Git. Review only the four dedicated resources before
