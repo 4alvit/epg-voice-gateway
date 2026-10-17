@@ -157,7 +157,7 @@ jobs:
           printf '%s  %s\n' '8ccbc6f8ee21d2827715f3c6e08a9b3e0209b1e62057c05067ef117e047c1a80' "$RUNNER_TEMP/worker-tools/tofu.zip" | sha256sum --check --strict
           unzip "$RUNNER_TEMP/worker-tools/tofu.zip" -d "$RUNNER_TEMP/worker-tools"
           curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location https://releases.hashicorp.com/terraform-provider-local/2.9.1/terraform-provider-local_2.9.1_linux_amd64.zip -o "$RUNNER_TEMP/worker-tools/local.zip"
-      - name: Verify actual Worker schemas, mock plans and shared runtime TLS
+      - name: Verify actual Worker schemas, offline plans and shared runtime TLS
         run: |
           uv run --frozen python scripts/worker_profile.py --shared-source .shared-cloudflare check --provider-dir "$RUNNER_TEMP/qualified-provider" --tofu "$RUNNER_TEMP/worker-tools/tofu" --local-provider-archive "$RUNNER_TEMP/worker-tools/local.zip"
           uv run --frozen python scripts/worker_profile.py --shared-source .shared-cloudflare tls --provider-dir "$RUNNER_TEMP/qualified-provider" --tofu "$RUNNER_TEMP/worker-tools/tofu" --local-provider-archive "$RUNNER_TEMP/worker-tools/local.zip"

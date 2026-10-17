@@ -116,18 +116,16 @@ def runtime_arguments(args, directory, command, extra=()):
 
 
 def qualify(args, snapshot):
-    """Exercise actual schemas/mocked plans in public-source-only fresh copies."""
+    """Exercise actual schemas/offline plans in public-source-only fresh copies."""
     with tempfile.TemporaryDirectory(prefix="epg-worker-plans-") as name:
         stage = Path(name)
         for module in ("google-home-worker-vpc", "alexa-worker-vpc"):
             source = ROOT / "deploy" / module
             destination = stage / module
-            (destination / "terraform/tests").mkdir(parents=True)
+            (destination / "terraform").mkdir(parents=True)
             shutil.copyfile(source / "relay.mjs", destination / "relay.mjs")
             for path in (source / "terraform").glob("*.tf"):
                 shutil.copyfile(path, destination / "terraform" / path.name)
-            for path in (source / "terraform/tests").glob("*.tftest.hcl"):
-                shutil.copyfile(path, destination / "terraform/tests" / path.name)
             invoke(snapshot, "run_secure_profile.py", runtime_arguments(
                 args, destination / "terraform", "validate", ["-no-color"]
             ))
@@ -135,7 +133,7 @@ def qualify(args, snapshot):
                 args.tofu.resolve(strict=True), args.provider_dir.resolve(strict=True),
                 args.local_provider_archive.resolve(strict=True), destination / "terraform",
             ])
-    print("Both Worker modules passed actual provider schema and mock plan assertions.")
+    print("Both Worker modules passed actual provider schema and offline plan assertions.")
 
 
 def main():

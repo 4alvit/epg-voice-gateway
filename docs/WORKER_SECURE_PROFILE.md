@@ -72,6 +72,15 @@ command with `apply /private/path/alexa.plan` applies an explicitly approved
 saved plan. It uses the same pinned provider, private mirror and engine. This
 project's CI performs no live apply or resource creation.
 
+Qualification uses real provider plans with empty local state, synthetic inputs
+and an API endpoint trapped on loopback; any attempted API connection fails the
+check. It checks private/public/channel variants, exact relay bytes, account and
+resource dependencies. Computed namespace URLs remain unknown during planning;
+the actual postcondition is evaluated separately by OpenTofu against valid,
+wrong-host, wrong-scheme, null and empty returned URLs. An explicit null guard
+ensures a missing provider URL cannot become an indeterminate condition.
+These checks prove plan/guard behavior, not a successful cloud deployment.
+
 **Existing Terraform/OpenTofu/HCP state is not automatically migrated.** Do not
 copy the new-workspace instructions over a live deployment or re-create managed
 resources in empty state. Existing owners must back up and verify state, locks,

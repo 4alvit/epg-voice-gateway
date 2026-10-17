@@ -41,7 +41,7 @@ resource "cloudflare_worker" "google" {
 
   lifecycle {
     postcondition {
-      condition = try(contains([
+      condition = self.subdomain.url != null && try(contains([
         local.worker_hostname,
         "https://${local.worker_hostname}",
       ], self.subdomain.url), false)
