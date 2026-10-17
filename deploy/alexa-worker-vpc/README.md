@@ -1,5 +1,11 @@
 # Dedicated Alexa control relay
 
+For new provisioning, use the [qualified Worker profile](../../docs/WORKER_SECURE_PROFILE.md).
+It retains this module's features while replacing the old registry provider's
+known vulnerable client dependencies. Existing Terraform state is retained; adopting the profile does not silently
+upgrade an already installed provider.
+
+
 This optional Worker exposes only `POST /alexa` on a dedicated HTTPS
 `workers.dev` hostname. It reaches the existing EPG Voice Gateway through one
 private Workers VPC Service and an existing Cloudflare Tunnel:
@@ -100,14 +106,11 @@ variables file and replace its placeholders. Supply `CLOUDFLARE_API_TOKEN` via
 the operator's environment; no gateway or provider token belongs in Terraform
 variables. Protect plans and state using the established state-storage policy.
 
-From the copied directory:
+For a new deployment, follow the [qualified Worker provisioning commands](../../docs/WORKER_SECURE_PROFILE.md#new-workspace-and-deployment).
+Use that verified provider for `validate`, `plan` and `apply`; direct registry
+installation selects the older vulnerable binary. Existing state owners must
+review a controlled migration before changing provider checksums or backends.
 
-```sh
-terraform -chdir=terraform init
-terraform -chdir=terraform validate
-terraform -chdir=terraform plan -var-file=/private/path/alexa-relay.tfvars \
-  -out=/private/path/alexa-relay.tfplan
-```
 
 Review a plan that creates only the four dedicated resources. Keep `publish=false`
 for the initial installation, then verify the resulting namespace, exact VPC

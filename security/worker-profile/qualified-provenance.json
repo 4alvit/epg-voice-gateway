@@ -1,0 +1,107 @@
+{
+  "source_url": "https://github.com/cloudflare/terraform-provider-cloudflare/archive/4f360d592a7d968c684a9b212c26808534b7c0d3.tar.gz",
+  "source_commit": "4f360d592a7d968c684a9b212c26808534b7c0d3",
+  "source_sha256": "e04e1b7c9cafcf89c748b41df8b856b7bf9565c5605e3c930db1a71ebf5ab842",
+  "source_root": "terraform-provider-cloudflare-4f360d592a7d968c684a9b212c26808534b7c0d3",
+  "provider_address": "registry.terraform.io/cloudflare/cloudflare",
+  "upstream_version": "5.24.0",
+  "build_version": "5.24.0-openssf.1",
+  "binary_name": "terraform-provider-cloudflare_v5.24.0",
+  "go_version": "go1.27.2",
+  "govulncheck_version": "v1.9.0",
+  "module_files": {
+    "go.mod": "2bd1ca82dfc2bd56c831c5ba7840a5b5638918e7d8be6440fd8944b69fd96f01",
+    "go.sum": "e9d1997ffd5abe3467530e85abf86bcd1a9d6d70bb04637123f2b7705e9733a1"
+  },
+  "platform": "linux_amd64",
+  "actual_go_version": "go1.27.2",
+  "binary_sha256": "f81caa08016c399537d367e11ea75f73731aad4c7a527a1bd8def1d83bbf3490",
+  "qualification": "source scan and upstream short non-acceptance test command passed (upstream skips retained); transport calibration still required",
+  "unit_test_shards": {
+    "inventory_sha256": "5c9451581d760fcc90dc0291df27ddde1a53d65e50526a25896fa255618c14a1",
+    "packages": 397,
+    "shards": [
+      {
+        "index": 0,
+        "receipt_sha256": "3b5654936cd830aec0ef8f3a1deff617d4ce407fa091f7c936fe05a5ff5de9ab",
+        "log_sha256": "1a6d7946da491d7e27fc6648f09e69726205526fb5b6a0944a4376e8ff850287"
+      },
+      {
+        "index": 1,
+        "receipt_sha256": "6e019604e7c49fe8e3c3c88b022b590e1ed370a7fc0f421b88ac13f4a5e06c72",
+        "log_sha256": "7695695bf24ea25466dce03ea8b46723210e8484d6d1ce734bd01aa8f9f8f1b6"
+      },
+      {
+        "index": 2,
+        "receipt_sha256": "6e50b84e3b7588370cf7608499a3e84d3395718d4830c2ca7f5b1f0a9fd58b6b",
+        "log_sha256": "0d1226e2fc9200c5a0d2b3026fb768cc1cd6bbce297cd659736c448f794fb821"
+      },
+      {
+        "index": 3,
+        "receipt_sha256": "1ead8552ac29ca0a7f69e1500c0591c97951b89013296400f9a87aa532fd1155",
+        "log_sha256": "19ec168af886fae93369f9108cb276e8bd0bab4df3651947049306390011fba7"
+      },
+      {
+        "index": 4,
+        "receipt_sha256": "52cf4fe8dd6d3c9f11eef5c296164967b9c0119224757828e362c16f6e976d9b",
+        "log_sha256": "8923bc2a21564f0a8bab80cad760762f219d963ad19c99a975ddf7a6a5599d1d"
+      },
+      {
+        "index": 5,
+        "receipt_sha256": "04994a357243678a6eba12ee3280a0f8d02beb0ebf0acb0f1212b0a1b78a1ce0",
+        "log_sha256": "e840bfa59eab7b021771aa03bd3feccc3ee73a3df28c5411318fce87956727cc"
+      },
+      {
+        "index": 6,
+        "receipt_sha256": "2674080787d3d40ba6b0bdfdec0910ffb55dee0e6bc1284da3da28d21e82df80",
+        "log_sha256": "801de6d8dd19860820b01355362252a6d8857cb72c78dd13026aafef0aee9298"
+      },
+      {
+        "index": 7,
+        "receipt_sha256": "7e361c0ea53e6ba6d793c3162a8e5e310e2360e6ae607fc16b1d87f5f89412cd",
+        "log_sha256": "ad65e10c5d56284311ef2862013bec7c62e2632a5462f4ae9f040f4b9d86ac6a"
+      },
+      {
+        "index": 8,
+        "receipt_sha256": "d4f977f79682319d8c8e3e8eee94fe57e58cfa19467a4649a9e7b6f980498990",
+        "log_sha256": "fc15ad602e3a8d79a93bd0e651c9ed1b0ebb87b176e386d1fbb9f4e75b3d498f"
+      },
+      {
+        "index": 9,
+        "receipt_sha256": "d40a5344bb4f3bf3d80c9e3e20f5c7556a6497281fde8a778fd12c613735bdfe",
+        "log_sha256": "1535c95e38ca5ed493acfee85f0f2350fc2b962e9cc838a2cfd96ab79f7cf076"
+      },
+      {
+        "index": 10,
+        "receipt_sha256": "797347576e744565eb5ea2912d6b75ef46773cd58b97665dc4cada28b1e1f8aa",
+        "log_sha256": "7f3c6edddaad64dd3df8b2c2b1f34d72fa0a385772e8e4d1b1852b3839cf7d55"
+      },
+      {
+        "index": 11,
+        "receipt_sha256": "a3546d3d3369add23b68aa2b27c02f4e9fcc3d07766c0811086e6bb55575637a",
+        "log_sha256": "bd949578c7a80b9364e2f80058c77573c0b7e2b331004ae87c69608254bf7e8c"
+      },
+      {
+        "index": 12,
+        "receipt_sha256": "0eaa5bdd998fca7792e9225cd1d8e99bda454e7d96b012e118cdd1e8b9313c69",
+        "log_sha256": "97569305cf382604609167f896e616bee3e297260ee5136547533e559ee2ef07"
+      },
+      {
+        "index": 13,
+        "receipt_sha256": "d3cf5c222faa2dcba98e9003ea73ff75023fe1ba4ae6b9c936fc232c38f7de6c",
+        "log_sha256": "568535a1e1def00e3222edb818059cd9b49478769ec52ef7f6bab182af4119f9"
+      },
+      {
+        "index": 14,
+        "receipt_sha256": "67a1decf7df5cb1b63dda5c037aa23644e6fa77cd9eb72c629716f1c78e4f50f",
+        "log_sha256": "d7a84b4cd87278194984eea91dc7897dfe9e1dfbb8ae4c4e9779b8f4c2bb883d"
+      },
+      {
+        "index": 15,
+        "receipt_sha256": "d8568a11ec91ea9bb9eb53ea3c9ea9046ade36a61aa4d3b06f31d5bee3d2bf0e",
+        "log_sha256": "94a70899ef4486b65bae5745ea890e324e5d88b272f0f379aaf98e183006d4f7"
+      }
+    ]
+  },
+  "qualification_id": "bb4ee06130afd80756b53839111f6f7f36115b1b"
+}

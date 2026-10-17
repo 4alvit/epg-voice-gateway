@@ -73,3 +73,15 @@ Alexa signature and complete HTTPS workflow tests exercise compatibility.
 This check concerns the wheel's embedded OpenSSL; CPython's system TLS library,
 remaining image findings and optional Cloudflare deployment are separate audit
 boundaries. It does not claim a new release or complete vulnerability clearance.
+
+
+## Worker provider qualification
+
+The optional Google/Alexa Worker modules now select a shared, pinned security
+profile through `scripts/worker_profile.py`. Its separate required public CI job
+reconciles the original 397-package qualification, rebuilds the same production
+binary and demands the original independently recorded SHA-256. It then runs
+both modules' real schemas and mocked policy plans plus real TLS handshakes.
+The [deployment guide](WORKER_SECURE_PROFILE.md) preserves state ownership and
+distinguishes those tests from cloud/device acceptance. This does not retroactively
+upgrade existing registry installations or clear every operator dependency.
