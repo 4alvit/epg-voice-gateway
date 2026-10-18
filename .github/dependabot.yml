@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: daily
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /
@@ -14,6 +17,9 @@ updates:
     directory: /
     schedule:
       interval: daily
+    groups:
+      python-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: pip
     directory: /container

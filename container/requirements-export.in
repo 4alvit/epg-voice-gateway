@@ -1,0 +1,2 @@
+# Match the reviewed uv version in Checks. Used only in the export stage.
+uv==0.12.7

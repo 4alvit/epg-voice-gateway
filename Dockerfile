@@ -1,4 +1,4 @@
-FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS build-base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -18,7 +18,18 @@ RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir 
 COPY container/requirements-build.txt /tmp/requirements-build.txt
 RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
     --only-binary=:all: --require-hashes -r /tmp/requirements-build.txt
-COPY pyproject.toml README.md LICENSE requirements.lock ./
+# Export from the single reviewed lock without network resolution. Keep uv out
+# of the runtime image; dependency PRs only need to update uv.lock.
+FROM build-base AS lock-export
+COPY container/requirements-export.txt /tmp/requirements-export.txt
+RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
+    --only-binary=:all: --no-deps --require-hashes -r /tmp/requirements-export.txt
+COPY pyproject.toml uv.lock ./
+RUN uv export --locked --offline --no-dev --no-emit-project -o /requirements.lock
+
+FROM build-base AS runtime
+COPY --from=lock-export /requirements.lock ./requirements.lock
+COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
     --no-build-isolation --require-hashes -r requirements.lock \

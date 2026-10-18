@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Export hash-checked container requirements directly from the reviewed uv lock in an isolated offline build stage, so automated dependency updates cannot leave a second lock stale.
+- Update FastAPI, Uvicorn, Ruff and pinned CI actions; group related dependency updates for one coherent validation run.
+
 ## 0.1.0 development source (not a stable release)
 
 The initial source version provides single-household XMLTV/M3U catalogue import, current-programme and channel search, bounded SQLite storage, authenticated controls, expiring HMAC media sessions, HLS proxying and private voice integrations. There are currently no published stable release assets. Reproducible source revisions are identified by their full Git commit; pyproject.toml records the planned 0.1.0 semantic version.
