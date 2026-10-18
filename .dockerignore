@@ -6,7 +6,8 @@
 !container/
 !container/requirements-installer.txt
 !container/requirements-build.txt
-!requirements.lock
+!uv.lock
+!container/requirements-export.txt
 !src/
 !src/**
 src/**/__pycache__/

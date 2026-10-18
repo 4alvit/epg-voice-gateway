@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Export hash-checked container requirements directly from the reviewed uv lock in an isolated offline build stage, so automated dependency updates cannot leave a second lock stale.
-- Update FastAPI, Uvicorn, Ruff and pinned CI actions; group related dependency updates for one coherent validation run.
+- Update the export/CI tool to patched uv 0.12.18; update FastAPI, Uvicorn, Ruff and pinned CI actions; group related dependency updates for one coherent validation run.
 
 ## 0.1.0 development source (not a stable release)
 
