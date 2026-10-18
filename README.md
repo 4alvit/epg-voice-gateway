@@ -250,8 +250,10 @@ uv run --extra test ruff check .
 ```
 
 `uv.lock` pins development dependencies. The container installs runtime packages
-from the hash-checked `requirements.lock`. To update both deliberately, run
-`uv lock` and `uv export --frozen --no-dev --no-emit-project -o requirements.lock`,
+from a hash-checked requirements export generated from `uv.lock` in an isolated
+Docker build stage. `uv export --locked --offline` refuses stale lock metadata
+and never resolves new versions. The exporter is excluded from the runtime image.
+To update dependencies deliberately, run `uv lock`,
 then rerun the tests and rebuild the image. Container installer and build backends
 have separate hash-checked locks in `container/`. Update their reviewed inputs,
 regenerate `container/requirements-build.txt` with the command recorded in that
