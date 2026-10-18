@@ -123,3 +123,25 @@ def test_python_timeout_reserves_private_runner_cleanup(private, expected):
     assert actual == expected
     assert jobs["node_checks"]["timeout-minutes"] == 20
     assert jobs["python"]["timeout-minutes"] == 5
+
+
+def test_ci_and_container_use_the_same_uv_exporter():
+    root = WORKFLOW.parents[2]
+    pins = [
+        line.removesuffix("\\").strip()
+        for line in (root / "container/requirements-export.txt").read_text().splitlines()
+        if line.startswith("uv==")
+    ]
+    assert len(pins) == 1
+    expected = pins[0].removeprefix("uv==").strip()
+    assert expected
+    assert f"uv=={expected}" in (root / "container/requirements-export.in").read_text().splitlines()
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+    exporters = [
+        step["with"]["version"]
+        for job in jobs.values()
+        for step in job.get("steps", [])
+        if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
+    ]
+    assert exporters
+    assert all(version == expected for version in exporters)
