@@ -76,6 +76,10 @@ def _workflow_expression(expression, context):
                 return True
             if node.func.id == "fromJSON" and len(node.args) == 1:
                 return json.loads(evaluate(node.args[0]))
+            if node.func.id == "contains" and len(node.args) == 2:
+                return evaluate(node.args[1]) in evaluate(node.args[0])
+            if node.func.id == "format" and len(node.args) == 2:
+                return evaluate(node.args[0]).format(evaluate(node.args[1]))
         raise AssertionError(f"Unrecognized workflow expression: {ast.dump(node)}")
 
     return evaluate(ast.parse(expression.strip(), mode="eval").body)
@@ -93,12 +97,16 @@ def test_public_forks_never_select_private_runner(private, event, same_repositor
             "example/project" if same_repository else "external/fork"
         ),
         "github.repository": "example/project",
+        "vars.CI_RUNNER_MODE": "github",
+        "vars.CI_RUNNER_LABELS": '["reserved-public-ci"]',
+        "github.ref": "refs/heads/main",
+        "github.event.repository.default_branch": "main",
     }
     permitted = not private or event != "pull_request" or same_repository
     for name, job in workflow["jobs"].items():
         if name in ("container", "worker_profile"):
             assert _workflow_expression(job["if"], context) is (not private)
-            assert job["runs-on"] == "ubuntu-latest"
+            assert _workflow_expression(job["runs-on"], context) == ["ubuntu-latest"]
             continue
         assert _workflow_expression(job["if"], context) is permitted
         labels = _workflow_expression(job["runs-on"], context)
@@ -111,6 +119,34 @@ def test_public_forks_never_select_private_runner(private, event, same_repositor
                 assert step["with"]["persist-credentials"] is False
     assert workflow["permissions"] == {"contents": "read"}
     assert "pull_request_target" not in workflow.get(True, workflow.get("on", {}))
+
+
+@pytest.mark.parametrize("mode", ["", "github", "unknown", "self-hosted", "k3s"])
+@pytest.mark.parametrize("labels", ["", '["reserved-public-ci"]'])
+@pytest.mark.parametrize("event, same_repository, ref, trusted", [
+    ("pull_request", True, "refs/pull/1/merge", True),
+    ("pull_request", False, "refs/pull/1/merge", False),
+    ("push", True, "refs/heads/trunk", True),
+    ("push", True, "refs/heads/feature", False),
+    ("schedule", True, "refs/heads/trunk", True),
+    ("workflow_dispatch", True, "refs/heads/trunk", True),
+    ("workflow_dispatch", True, "refs/heads/feature", False),
+    ("pull_request_target", True, "refs/heads/trunk", False),
+])
+def test_public_reserve_requires_opt_in_and_trusted_event(mode, labels, event, same_repository, ref, trusted):
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+    context = {
+        "vars.CI_RUNNER_MODE": mode,
+        "vars.CI_RUNNER_LABELS": labels,
+        "github.event_name": event,
+        "github.event.pull_request.head.repo.full_name": "example/project" if same_repository else "external/fork",
+        "github.repository": "example/project",
+        "github.ref": ref,
+        "github.event.repository.default_branch": "trunk",
+    }
+    expected = json.loads(labels or "[]") if mode in ("self-hosted", "k3s") and trusted else ["ubuntu-latest"]
+    for name in ("container", "worker_profile"):
+        assert _workflow_expression(jobs[name]["runs-on"], context) == expected
 
 
 @pytest.mark.parametrize("private, expected", [(True, 30), (False, 20), (None, 20)])
