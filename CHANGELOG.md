@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refresh the installer and application certificate stores with uv 0.13.4 and certifi 2026.10.19, removing the distrusted emSign ECC Root CA - G3. Rebuild existing container images to receive the application bundle fix.
+
 - Export hash-checked container requirements directly from the reviewed uv lock in an isolated offline build stage, so automated dependency updates cannot leave a second lock stale.
 - Update the export/CI tool to patched uv 0.12.18; update FastAPI, Uvicorn, Ruff and pinned CI actions; group related dependency updates for one coherent validation run.
 
