@@ -2,8 +2,12 @@
 
 ## Unreleased
 
+- Requalify the optional Cloudflare provider with Go 1.27.3 for GO-2026-6809 (CVE-2026-111943), preserving all sixteen upstream test shards and requiring the EPG rebuild to match the independently qualified binary digest. Existing provider installations and cloud state are not changed automatically.
+
+- Refresh the installer and application certificate stores with uv 0.13.4 and certifi 2026.10.19, removing the distrusted emSign ECC Root CA - G3. Rebuild existing container images to receive the application bundle fix.
+
 - Export hash-checked container requirements directly from the reviewed uv lock in an isolated offline build stage, so automated dependency updates cannot leave a second lock stale.
-- Update the export/CI tool to patched uv 0.12.18; update FastAPI, Uvicorn, Ruff and pinned CI actions; group related dependency updates for one coherent validation run.
+- Update the export/CI tool to patched uv 0.13.4; update FastAPI, Uvicorn, Ruff and pinned CI actions; group related dependency updates for one coherent validation run.
 
 ## 0.1.0 development source (not a stable release)
 

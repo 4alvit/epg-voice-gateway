@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          version: '0.13.1'
+          version: '0.13.4'
           python-version: ${{ matrix.python }}
           enable-cache: false
           cache-local-path: ${{ runner.temp }}/epg-voice-uv-cache
@@ -135,16 +135,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: victron-venus/terraform-cloudflare-inverter-gateway
-          ref: adc6d9f833bb4b42f3957bdedf5b6fed4ad21482
+          ref: fd90bb21075f40378409f8c8613156a7c224df19
           path: .shared-cloudflare
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          version: '0.13.1'
+          version: '0.13.4'
           python-version: '3.12'
           enable-cache: false
       - run: uv sync --locked --extra test

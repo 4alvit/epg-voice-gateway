@@ -9,7 +9,7 @@ listed below. Selecting this profile is therefore required for the qualified
 Worker provisioning path.
 
 The adapter delegates to the exact shared
-[builder and local-state runtime](https://github.com/victron-venus/terraform-cloudflare-inverter-gateway/tree/adc6d9f833bb4b42f3957bdedf5b6fed4ad21482).
+[builder and local-state runtime](https://github.com/victron-venus/terraform-cloudflare-inverter-gateway/tree/fd90bb21075f40378409f8c8613156a7c224df19).
 Its [qualification pins](../security/worker-profile/README.md) explain the
 external byte authority and retained original test receipts. It never accepts
 an arbitrary executable on the strength of self-supplied provenance.
@@ -25,10 +25,10 @@ the package. Artifact retention is 30 days; the original receipts remain in Git.
 
 ```sh
 git clone https://github.com/victron-venus/terraform-cloudflare-inverter-gateway.git ../cloudflare-profile
-git -C ../cloudflare-profile checkout --detach adc6d9f833bb4b42f3957bdedf5b6fed4ad21482
-# If rebuilding, use the actual Go 1.27.2 Linux amd64 executable:
+git -C ../cloudflare-profile checkout --detach fd90bb21075f40378409f8c8613156a7c224df19
+# If rebuilding, use the actual Go 1.27.3 Linux amd64 executable:
 python3 scripts/worker_profile.py --shared-source ../cloudflare-profile build \
-  --go /absolute/path/to/go1.27.2/bin/go --output /private/path/qualified-provider
+  --go /absolute/path/to/go1.27.3/bin/go --output /private/path/qualified-provider
 # Run this even when using a downloaded CI artifact:
 python3 scripts/worker_profile.py --shared-source ../cloudflare-profile verify \
   --provider-dir /private/path/qualified-provider
@@ -96,7 +96,7 @@ remapping.
 The old official Cloudflare binary's GO-2026-4870 / CVE-2026-32283,
 GO-2026-4918 / CVE-2026-33814, GO-2026-4947 / CVE-2026-32280 and
 GO-2026-5037 / CVE-2026-27145 are addressed only when this qualified derivative
-is actually selected. Its Go 1.27.2/module patch does not upgrade an already
+is actually selected. Its Go 1.27.3/module patch does not upgrade an already
 installed registry provider. This profile does not attest to operator-installed
 Wrangler, cloudflared, Home Assistant, host OS packages or live cloud acceptance;
 those remain explicit deployment prerequisites. Relay behavior, publication
