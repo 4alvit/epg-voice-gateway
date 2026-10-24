@@ -1,0 +1,6 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="excluded" tvg-shift="2",Excluded stream
+https://external.example.test/direct/stream
+/channel/orphan/index.m3u8
+#EXTINF:-1 tvg-id="allowed" tvg-shift="0",Allowed channel
+/channel/allowed/index.m3u8?token=synthetic
