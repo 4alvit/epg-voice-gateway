@@ -182,3 +182,70 @@ async def test_duplicate_display_name_in_one_feed_is_not_silently_selected():
     finally:
         catalog.close()
         await client.aclose()
+
+
+@pytest.mark.parametrize("unsupported", [
+    "http://direct.example.test:6878/ace/private-id",
+    "http://proxy.test:8080/recordings/private-file",
+    "http://token@proxy.test:8080/channel/private/index.m3u8",
+    "http://proxy.test:8080/channel/private/index.m3u8#private-fragment",
+    "file:///private/channel",
+])
+def test_mixed_playlist_retains_only_supported_channel_and_logs_count(unsupported, caplog):
+    text = ('#EXTM3U\n#EXTINF:-1 tvg-id="excluded" tvg-shift="2",Private title\n'
+            + unsupported + '\n'
+            # An unlabelled URL must not inherit the skipped entry's metadata.
+            + '/channel/orphan/index.m3u8\n'
+            + '#EXTINF:-1 tvg-id="allowed",Allowed channel\n'
+            + '/channel/allowed/index.m3u8?token=allowed-private\n')
+    channels = parse_playlist(text, "http://proxy.test:8080")
+    assert len(channels) == 1
+    assert channels[0].epg_id == "allowed"
+    assert channels[0].name == "Allowed channel"
+    assert channels[0].shift_seconds == 0
+    assert channels[0].stream_url == "http://proxy.test:8080/channel/allowed/index.m3u8?token=allowed-private"
+    assert [record.getMessage() for record in caplog.records] == ["playlist_entries_skipped count=1"]
+    assert "private" not in caplog.text.lower()
+
+
+@pytest.mark.parametrize("shift", ["nan", "inf", "invalid", "25"])
+@pytest.mark.parametrize("url", ["/channel/test/index.m3u8", "http://direct.example.test/ace/test"])
+def test_mixed_playlist_still_rejects_malformed_shift(shift, url):
+    text = playlist().decode() + f'#EXTINF:-1 tvg-shift="{shift}",Broken metadata\n{url}\n'
+    with pytest.raises(InvalidSource):
+        parse_playlist(text, "http://proxy.test:8080")
+
+
+def test_mixed_playlist_preserves_duplicate_channel_identity_and_last_valid_url():
+    text = ('#EXTM3U\n'
+            '#EXTINF:-1 tvg-id="first",Same name\n/channel/same/index.m3u8?token=old\n'
+            '#EXTINF:-1 tvg-id="excluded",Same name\nhttp://direct.example.test/ace/test\n'
+            '#EXTINF:-1 tvg-id="last",Same name\n/channel/same/index.m3u8?token=new\n')
+    channels = parse_playlist(text, "http://proxy.test:8080")
+    assert len(channels) == 1
+    original = parse_playlist(text.split('#EXTINF:-1 tvg-id="excluded"')[0], "http://proxy.test:8080")
+    assert channels[0].channel_id == original[0].channel_id
+    assert channels[0].epg_id == "last"
+    assert channels[0].stream_url.endswith("token=new")
+
+
+async def test_mixed_catalogue_never_fetches_or_publishes_unsupported_streams():
+    mixed = playlist() + b'#EXTINF:-1 tvg-id="external",External channel\nhttp://direct.example.test/ace/private\n'
+    requested = []
+
+    def respond(request):
+        requested.append(str(request.url))
+        assert request.url.host in {"proxy.test", "guide.test"}
+        return httpx.Response(200, content=mixed if request.url.host == "proxy.test" else guide())
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        catalog = Catalog(settings(), client)
+        try:
+            await catalog.refresh()
+            assert catalog.ready
+            matches = await catalog.resolve("Kukutiki", now=NOW)
+            assert len(matches) == 1 and matches[0].channel_name == "Kids"
+            assert await catalog.resolve("External channel", now=NOW) == []
+            assert len(requested) == 2
+        finally:
+            catalog.close()

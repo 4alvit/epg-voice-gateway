@@ -63,6 +63,7 @@ def parse_playlist(text: str, proxy_origin: str) -> list[Channel]:
     attributes: dict[str, str] = {}
     title = ""
     header_shift = "0"
+    skipped = 0
     expected = urlsplit(proxy_origin)
     for line in text.splitlines():
         line = line.strip().lstrip("\ufeff")
@@ -82,27 +83,34 @@ def parse_playlist(text: str, proxy_origin: str) -> list[Channel]:
             else:
                 title = ""
         elif line and not line.startswith("#") and title:
-            url = urljoin(proxy_origin + "/", line)
-            parsed = urlsplit(url)
+            try:
+                shift = int(float(attributes.get("tvg-shift", header_shift)) * 3600)
+                if abs(shift) > 86400:
+                    raise ValueError()
+                url = urljoin(proxy_origin + "/", line)
+                parsed = urlsplit(url)
+            except (ValueError, OverflowError):
+                raise InvalidSource() from None
             if (
                 (parsed.scheme, parsed.netloc) != (expected.scheme, expected.netloc)
                 or parsed.username is not None
                 or parsed.fragment
                 or not parsed.path.startswith("/channel/")
             ):
-                raise InvalidSource()
-            try:
-                shift = int(float(attributes.get("tvg-shift", header_shift)) * 3600)
-                if abs(shift) > 86400:
-                    raise ValueError()
-            except (ValueError, OverflowError):
-                raise InvalidSource() from None
+                # Mixed proxy playlists may also contain direct streams. They
+                # are outside this gateway's playback boundary and must never
+                # enter its catalogue or inherit metadata onto the next URL.
+                skipped += 1
+                attributes, title = {}, ""
+                continue
             identifier = hashlib.sha256((parsed.path + "\0" + title).encode()).hexdigest()[:24]
             channels[identifier] = Channel(
                 identifier, title, attributes.get("tvg-id", ""),
                 attributes.get("tvg-name", title), url, shift,
             )
             attributes, title = {}, ""
+    if skipped:
+        LOGGER.warning("playlist_entries_skipped count=%d", skipped)
     if not channels:
         raise InvalidSource()
     return list(channels.values())
