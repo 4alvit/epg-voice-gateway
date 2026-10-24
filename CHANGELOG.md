@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add bounded, offline M3U/XMLTV candidate fuzz assessment with regression coverage for malformed playlist URLs. This does not publish or accept a product release.
+
 ## 0.1.0b3 — beta candidate
 
 - Bootstrap the build with hash-pinned pip 26.2.2, including its corrected certifi trust store. Remove pip and the bundled ensurepip installer from the final application runtime after installation and dependency validation.

@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "language": "python",
+  "setup": [
+    [
+      "python3",
+      "-m",
+      "venv",
+      ".fuzz-venv"
+    ],
+    [
+      ".fuzz-venv/bin/python",
+      "-m",
+      "pip",
+      "install",
+      "--require-hashes",
+      "--only-binary=:all:",
+      "-r",
+      ".github/requirements-fuzz.txt"
+    ]
+  ],
+  "targets": [
+    {
+      "name": "playlist",
+      "engine": "atheris",
+      "command": [
+        ".fuzz-venv/bin/python",
+        "fuzz/fuzz_playlist.py",
+        "-max_len=16384"
+      ],
+      "seconds": 60,
+      "corpus": "fuzz/corpus/playlist",
+      "instrumentation": [
+        {
+          "module": "epg_voice_gateway.catalog",
+          "functions": [
+            "parse_playlist"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xmltv",
+      "engine": "atheris",
+      "command": [
+        ".fuzz-venv/bin/python",
+        "fuzz/fuzz_xmltv.py",
+        "-max_len=16384"
+      ],
+      "seconds": 60,
+      "corpus": "fuzz/corpus/xmltv",
+      "instrumentation": [
+        {
+          "module": "epg_voice_gateway.catalog",
+          "functions": [
+            "parse_xmltv"
+          ]
+        }
+      ]
+    }
+  ],
+  "preflight-paths": [
+    "fuzz",
+    "src",
+    "uv.lock",
+    ".github/requirements-fuzz.in"
+  ]
+}

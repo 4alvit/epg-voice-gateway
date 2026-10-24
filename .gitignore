@@ -13,3 +13,8 @@ build/
 secrets/
 operations/
 *.log
+
+# Isolated candidate fuzz dependencies and diagnostics
+.fuzz-venv/
+.fuzz-toolkit/
+fuzz-output/

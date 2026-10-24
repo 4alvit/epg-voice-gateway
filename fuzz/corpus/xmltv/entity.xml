@@ -1,0 +1,1 @@
+<!DOCTYPE tv [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><tv><channel id="one"><display-name>&xxe;</display-name></channel></tv>

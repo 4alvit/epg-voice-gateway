@@ -1,0 +1,7 @@
+# Parser import dependencies only; versions constrained to the committed uv.lock.
+# No application server, certificate fetching or playback is used by the targets.
+atheris==3.1.0
+anyio
+defusedxml
+httpx
+pydantic-settings

@@ -1,5 +1,9 @@
 # EPG Voice Gateway
 
+[![RC fuzz assessment](https://github.com/4alvit/epg-voice-gateway/actions/workflows/fuzz-candidate.yml/badge.svg)](https://github.com/4alvit/epg-voice-gateway/actions/workflows/fuzz-candidate.yml)
+
+[RC fuzz testing: scope, process, limits and results](docs/fuzzing.md)
+
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15583/badge)](https://www.bestpractices.dev/projects/15583)
 
 Find a channel or a programme that is airing now and play it on a compatible Alexa
