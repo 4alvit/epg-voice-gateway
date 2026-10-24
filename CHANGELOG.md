@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.0b2 — beta candidate
+
+- Export the smoke-tested runtime image, Python distributions, full public source,
+  dependency inventory and source-bound checksums through the existing CI workflow.
+  Candidate export does not grant deployment or stable acceptance.
+- Update FastAPI to 0.151.0 and retain the hash-pinned setuptools build backend.
+- Run feature-branch checks once per pull request; main and manual candidate runs
+  still execute every required suite.
+
 
 - Requalify the optional Cloudflare provider with Go 1.27.3 for GO-2026-6809 (CVE-2026-111943), preserving all sixteen upstream test shards and requiring the EPG rebuild to match the independently qualified binary digest. Existing provider installations and cloud state are not changed automatically.
 
