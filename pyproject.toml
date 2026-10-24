@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "epg-voice-gateway"
-version = "0.1.0b3"
+version = "0.1.0b4"
 description = "Find currently airing programmes and play them through an existing HLS proxy"
 readme = "README.md"
 requires-python = ">=3.12"

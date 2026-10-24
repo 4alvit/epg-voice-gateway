@@ -55,6 +55,12 @@ The catalogue loads in the background. `/healthz` checks the process, while
 Failed refreshes retain the previous snapshot only until its configured stale
 deadline. XMLTV must contain programme start and stop times and channel IDs or
 unambiguous channel display names that match the configured playlist.
+Mixed playlists may contain direct streams that bypass the configured HLS proxy.
+The gateway imports only same-origin `/channel/` URLs; external origins, other
+paths, URL credentials and fragments are skipped without fetching or publishing
+them. A `playlist_entries_skipped count=N` log records only the excluded count.
+Malformed metadata or a playlist with no supported channels still fails the refresh.
+
 Channel IDs are scoped to each XMLTV source. When multiple sources reuse an ID,
 channel names disambiguate it; the first matching configured source takes precedence.
 An ambiguous display name within that source is skipped. Updates replace the
