@@ -18,6 +18,34 @@ The 45-dependency result covers the selected installed Python environment. It do
 
 Before treating the whole project as meeting vulnerability-remediation criteria, record the exact resolved build packages and container platform/digest, scan their dependencies, and review the provider executable and its Go dependencies for applicable advisories. Upgrade or provide a fully tested compatible replacement for affected components. Keep unverified criteria marked unmet until this work is complete; a transport test alone is not a dependency audit.
 
+### Runtime installer vendors and full-image gate — 2026-10-24
+
+The unpublished 0.1.0b2 image passed the earlier narrow XZ check, but its complete
+inventory exposed real vulnerable libraries vendored in pip 26.2.1 and in
+ensurepip's bundled wheel: certifi (GHSA-6q48-6c7w-9gw2), msgpack
+(GHSA-6v7p-g79w-8964), setuptools (CVE-2025-47273), and urllib3
+(CVE-2026-97687 / CVE-2026-97689). The patched application distributions did not
+replace those separate copies. This candidate was rejected before publication.
+
+The build now bootstraps the official hash-verified pip 26.2.2 wheel, whose
+certifi trust store removes the compromised roots described in the
+[certifi advisory](https://github.com/advisories/GHSA-6q48-6c7w-9gw2).
+After installation and `pip check`, the final runtime removes pip and ensurepip,
+including their vendored code. The build/export stages still have their pinned
+tools; deleting runtime files does not erase earlier image layers. No supported
+runtime operation installs packages or creates a virtual environment. Upgrade
+by rebuilding the image. Source installations retain their normal host tools.
+
+The retained hatchling backend builds wheels and source archives offline without
+pip. Every public container check exercises that export, startup, authentication,
+and the absence of both installer modules. The actual-image security gate now
+rejects every HIGH/CRITICAL language finding, whether discovered from package
+metadata or an embedded SBOM, and every fixable HIGH/CRITICAL OS finding. It also
+retains the exact XZ package requirement. Missing inventories fail closed.
+Unfixed OS findings remain listed in the summary and full Trivy report; passing
+this gate does not mean the image has zero vulnerabilities. Release and deployed
+image acceptance remain separate from source checks.
+
 ### Container installer remediation — 2026-10-16
 
 The pinned Linux/amd64 base image contains pip 25.0.1. A fresh Trivy inventory
