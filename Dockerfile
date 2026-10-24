@@ -31,11 +31,15 @@ FROM build-base AS runtime
 COPY --from=lock-export /requirements.lock ./requirements.lock
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
+# No runtime operation installs packages. Remove both copies of the installer,
+# including ensurepip's bundled wheel and their otherwise vulnerable vendors.
 RUN python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
     --no-build-isolation --require-hashes -r requirements.lock \
     && python -m pip --isolated --disable-pip-version-check install --no-cache-dir \
         --no-build-isolation --no-deps . \
     && python -m pip --isolated --disable-pip-version-check check \
+    && python -m pip --isolated --disable-pip-version-check uninstall --yes pip \
+    && python -c 'import shutil, sysconfig; from pathlib import Path; shutil.rmtree(Path(sysconfig.get_path("stdlib")) / "ensurepip")' \
     && groupadd --gid 10001 gateway \
     && useradd --uid 10001 --gid 10001 --no-create-home gateway
 

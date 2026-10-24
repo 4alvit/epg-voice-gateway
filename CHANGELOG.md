@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0b3 — beta candidate
+
+- Bootstrap the build with hash-pinned pip 26.2.2, including its corrected certifi trust store. Remove pip and the bundled ensurepip installer from the final application runtime after installation and dependency validation.
+- Block every HIGH/CRITICAL language-package finding (including vendored SBOM components) and fixable HIGH/CRITICAL OS findings in the actual runtime image. Preserve complete findings, including OS vulnerabilities without a distributor fix.
+- Exercise offline wheel/source export without an installer on every public container check. Runtime maintenance uses rebuilt images, not in-container package updates.
+- Supersede the unpublished 0.1.0b2 image after its complete inventory exposed vulnerable installer vendors. No production or physical-device acceptance is implied.
+
 ## 0.1.0b2 — beta candidate
 
 - Export the smoke-tested runtime image, Python distributions, full public source,

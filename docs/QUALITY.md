@@ -18,6 +18,96 @@ The 45-dependency result covers the selected installed Python environment. It do
 
 Before treating the whole project as meeting vulnerability-remediation criteria, record the exact resolved build packages and container platform/digest, scan their dependencies, and review the provider executable and its Go dependencies for applicable advisories. Upgrade or provide a fully tested compatible replacement for affected components. Keep unverified criteria marked unmet until this work is complete; a transport test alone is not a dependency audit.
 
+### Runtime installer vendors and full-image gate — 2026-10-24
+
+The unpublished 0.1.0b2 image passed the earlier narrow XZ check, but its complete
+inventory exposed real vulnerable libraries vendored in pip 26.2.1 and in
+ensurepip's bundled wheel: certifi (GHSA-6q48-6c7w-9gw2), msgpack
+(GHSA-6v7p-g79w-8964), setuptools (CVE-2025-47273), and urllib3
+(CVE-2026-97687 / CVE-2026-97689). The patched application distributions did not
+replace those separate copies. This candidate was rejected before publication.
+
+The build now bootstraps the official hash-verified pip 26.2.2 wheel, whose
+certifi trust store removes the compromised roots described in the
+[certifi advisory](https://github.com/advisories/GHSA-6q48-6c7w-9gw2).
+After installation and `pip check`, the final runtime removes pip and ensurepip,
+including their vendored code. The build/export stages still have their pinned
+tools; deleting runtime files does not erase earlier image layers. No supported
+runtime operation installs packages or creates a virtual environment. Upgrade
+by rebuilding the image. Source installations retain their normal host tools.
+
+The retained hatchling backend builds wheels and source archives offline without
+pip. Every public container check exercises that export, startup, authentication,
+and the absence of both installer modules. The actual-image security gate now
+rejects every HIGH/CRITICAL language finding, whether discovered from package
+metadata or an embedded SBOM, and every fixable HIGH/CRITICAL OS finding. It also
+retains the exact XZ package requirement. Missing inventories fail closed.
+Unfixed OS findings remain listed in the summary and full Trivy report; passing
+this gate does not mean the image has zero vulnerabilities. Release and deployed
+image acceptance remain separate from source checks.
+
+### Remaining operating-system findings — 2026-10-24
+
+The examined PR #45 image (head `5eac1b774279bc4fa7622999827842d1e5d2b496`,
+[CI run 40121197636](https://github.com/4alvit/epg-voice-gateway/actions/runs/40121197636),
+image ID `sha256:543864b146a7917fb2d27083db120fb92777ccb7df39d445e65bc3e178f44d93`)
+contained **44 HIGH package records representing 8 unique CVEs** on 24 October 2026.
+There are no CRITICAL findings and no Python-package findings. None of these
+remaining HIGH findings has a fixed version for the image's Debian 13 (trixie)
+release in the Debian tracker at review time. Complete findings remain in the
+retained JSON/SBOM; no ignore rule or VEX suppression has been introduced.
+
+#### Debian status and application exposure
+
+- **util-linux — 36 package records, four CVEs:**
+  [CVE-2026-76642](https://security-tracker.debian.org/tracker/CVE-2026-76642),
+  [CVE-2026-78408](https://security-tracker.debian.org/tracker/CVE-2026-78408),
+  [CVE-2026-78409](https://security-tracker.debian.org/tracker/CVE-2026-78409), and
+  [CVE-2026-78410](https://security-tracker.debian.org/tracker/CVE-2026-78410).
+  Debian classifies trixie as vulnerable with no DSA planned (minor issue);
+  fixed versions currently belong to unstable/testing. These defects concern
+  privileged mount helpers, configured mount hooks, or a privileged operator
+  invoking `nsenter --join-cgroup`. EPG has no such execution path. Nonroot
+  operation alone does not prove that every SUID helper is unreachable: retain
+  dropped capabilities and no-new-privileges in hardened deployments, and do not
+  introduce privileged mount or namespace operations into this container.
+- **ncurses — four package records:**
+  [CVE-2025-69720](https://security-tracker.debian.org/tracker/CVE-2025-69720).
+  Debian lists trixie as vulnerable with no DSA planned (minor issue). The defect
+  is in `infocmp` processing; EPG does not invoke that command or process terminal
+  descriptions. Library/package presence is not evidence of application use.
+- **systemd — two library records:**
+  [CVE-2026-16742](https://security-tracker.debian.org/tracker/CVE-2026-16742).
+  Debian lists trixie as vulnerable with no DSA planned (minor issue). The
+  advisory requires `systemd-homed` and a logged-in homed-managed user. The
+  container starts Uvicorn as UID 10001, not a systemd user-management service.
+  The inventory contains libsystemd/libudev; exact executable absence should be
+  checked during final archive inspection rather than inferred from a package
+  name alone.
+- **libacl — one package record:**
+  [CVE-2026-54369](https://security-tracker.debian.org/tracker/CVE-2026-54369).
+  Debian plans a future trixie point-release update; the new ACL API cannot be
+  safely replaced by individual backported patches. Exploitation needs a
+  privileged caller applying pathname-based ACL operations through an
+  attacker-controlled path. EPG has no ACL-management execution path and runs
+  unprivileged. Do not add privileged maintenance tools to the runtime.
+- **Perl — one package record:**
+  [CVE-2026-9538](https://security-tracker.debian.org/tracker/CVE-2026-9538).
+  Debian postpones the trixie fix while upstream regressions are resolved.
+  The issue concerns `Archive::Tar` allocating memory for malicious tar headers.
+  EPG does not invoke Perl or that archive reader. Exact module absence/presence
+  remains an archive inspection question, not a reason to discard the finding.
+
+#### Follow-up
+
+Rebuild and re-scan when fixed trixie packages become available. The required CI
+gate blocks any HIGH/CRITICAL language finding and any HIGH/CRITICAL OS finding
+with an available distributor fix. Keep the original inventory, its image
+identity, and the date of review together. Do not switch the base to unstable,
+remove necessary system libraries, or claim zero vulnerabilities merely to
+change the scanner count. Physical receiver and private deployment acceptance
+remain separate release requirements.
+
 ### Container installer remediation — 2026-10-16
 
 The pinned Linux/amd64 base image contains pip 25.0.1. A fresh Trivy inventory

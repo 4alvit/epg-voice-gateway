@@ -89,6 +89,12 @@ jobs:
         run: docker build --progress=plain --label "org.opencontainers.image.revision=$GITHUB_SHA" --tag epg-voice-gateway:ci .
       - name: Verify installed startup and authentication without network access
         run: docker run --rm --network none --interactive --entrypoint python epg-voice-gateway:ci - < container/smoke.py
+      - name: Verify offline distribution export without an installer
+        run: |
+          docker run --rm --network none --read-only \
+            --tmpfs /tmp:rw,nosuid,nodev,size=16m \
+            --entrypoint python epg-voice-gateway:ci \
+            -m hatchling build -t sdist -t wheel -d /tmp/distributions
       - name: Scan the actual image and retain its complete package inventory
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -100,22 +106,10 @@ jobs:
           list-all-pkgs: true
           ignore-unfixed: false
           exit-code: '0'
-      - name: Verify the native library fix and export the SBOM
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          report = json.loads(Path("container-trivy.json").read_text())
-          packages = [package for result in report["Results"] for package in result.get("Packages", [])]
-          matches = [package for package in packages if package["Name"] == "liblzma5"]
-          assert len(matches) == 1, "The scanner must identify the installed liblzma5"
-          assert matches[0]["Version"] == "5.8.1"
-          assert matches[0]["Release"] == "1+deb13u2"
-          findings = {finding["VulnerabilityID"] for result in report["Results"] for finding in result.get("Vulnerabilities", [])}
-          assert not findings.intersection({"DSA-6549-1", "TEMP-1147318-639065", "GHSA-5qpq-xqfv-j9pg"})
-          print("Verified the exact patched liblzma5 package and absence of the XZ advisory; all other findings remain in the report.")
-          PY
-          trivy convert --format cyclonedx --output container-sbom.cdx.json container-trivy.json
+      - name: Export the complete SBOM
+        run: trivy convert --format cyclonedx --output container-sbom.cdx.json container-trivy.json
+      - name: Reject actionable runtime vulnerabilities
+        run: python3 scripts/verify_container_security.py container-trivy.json
       - name: Upload image inventory and vulnerability evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
