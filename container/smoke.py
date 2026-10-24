@@ -2,6 +2,8 @@
 
 import importlib.metadata
 import os
+import tomllib
+from pathlib import Path
 
 from cryptography.hazmat.backends.openssl.backend import backend
 from fastapi.testclient import TestClient
@@ -15,7 +17,8 @@ assert importlib.metadata.version("cryptography") == "50.0.2"
 assert backend.openssl_version_number() >= 0x40000030, (
     "The installed crypto wheel must include OpenSSL 4.0.3 or newer"
 )
-assert importlib.metadata.version("epg-voice-gateway") == "0.1.0"
+expected_version = tomllib.loads(Path("/app/pyproject.toml").read_text())["project"]["version"]
+assert importlib.metadata.version("epg-voice-gateway") == expected_version
 print(f"Installed cryptography native runtime: {backend.openssl_version_text()}")
 
 settings = Settings(

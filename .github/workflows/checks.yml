@@ -1,7 +1,15 @@
 name: Checks
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      export_candidate:
+        description: Export this tested beta for explicit private-system acceptance
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
 jobs:
@@ -68,7 +76,7 @@ jobs:
   container:
     if: github.event.repository.private != true
     runs-on: ${{ fromJSON((vars.CI_RUNNER_MODE == 'self-hosted' || vars.CI_RUNNER_MODE == 'k3s') && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event_name) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && (vars.CI_RUNNER_LABELS || '[]') || '["ubuntu-latest"]') }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ inputs.export_candidate && 30 || 15 }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
@@ -78,7 +86,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build the actual installed image
-        run: docker build --progress=plain --tag epg-voice-gateway:ci .
+        run: docker build --progress=plain --label "org.opencontainers.image.revision=$GITHUB_SHA" --tag epg-voice-gateway:ci .
       - name: Verify installed startup and authentication without network access
         run: docker run --rm --network none --interactive --entrypoint python epg-voice-gateway:ci - < container/smoke.py
       - name: Scan the actual image and retain its complete package inventory
@@ -118,6 +126,38 @@ jobs:
             container-sbom.cdx.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Export the exact tested beta image and Python distributions
+        if: github.event_name == 'workflow_dispatch' && inputs.export_candidate && github.ref == 'refs/heads/main'
+        env:
+          CANDIDATE_DIRECTORY: ${{ runner.temp }}/epg-release-candidate
+          SOURCE_DIRECTORY: ${{ runner.temp }}/epg-release-source
+        run: |
+          set -euo pipefail
+          mkdir "$CANDIDATE_DIRECTORY" "$SOURCE_DIRECTORY"
+          git archive HEAD | tar -x -C "$SOURCE_DIRECTORY"
+          docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
+            --tmpfs /tmp:rw,nosuid,nodev,size=16m \
+            --mount "type=bind,src=$SOURCE_DIRECTORY,dst=/source,readonly" \
+            --mount "type=bind,src=$CANDIDATE_DIRECTORY,dst=/output" \
+            --workdir /source --entrypoint python epg-voice-gateway:ci \
+            -m hatchling build -t sdist -t wheel -d /output
+          docker image save epg-voice-gateway:ci | gzip -n > "$CANDIDATE_DIRECTORY/runtime-linux-amd64.tar.gz"
+          docker image inspect epg-voice-gateway:ci > "$RUNNER_TEMP/epg-image-inspect.json"
+          git archive --format=tar HEAD | gzip -n > "$CANDIDATE_DIRECTORY/source.tar.gz"
+          cp container-trivy.json container-sbom.cdx.json "$CANDIDATE_DIRECTORY/"
+          python3 scripts/release_candidate.py \
+            --directory "$CANDIDATE_DIRECTORY" \
+            --image-inspect "$RUNNER_TEMP/epg-image-inspect.json"
+      - name: Upload the beta acceptance candidate
+        if: github.event_name == 'workflow_dispatch' && inputs.export_candidate && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: epg-beta-${{ github.sha }}
+          path: ${{ runner.temp }}/epg-release-candidate/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
 
   worker_profile:
     if: github.event.repository.private != true
