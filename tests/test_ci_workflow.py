@@ -3,6 +3,7 @@
 import ast
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -181,3 +182,18 @@ def test_ci_and_container_use_the_same_uv_exporter():
     ]
     assert exporters
     assert all(version == expected for version in exporters)
+
+
+def test_container_build_lock_preserves_declared_backends():
+    root = WORKFLOW.parents[2]
+    declared = {
+        re.split(r"[<>=!~\[]", line, maxsplit=1)[0].strip().lower()
+        for line in (root / "container/requirements-build.in").read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    locked = {
+        line.split("==", maxsplit=1)[0].lower()
+        for line in (root / "container/requirements-build.txt").read_text().splitlines()
+        if "==" in line and not line.lstrip().startswith("#")
+    }
+    assert declared <= locked, f"Build lock omitted declared backends: {declared - locked}"

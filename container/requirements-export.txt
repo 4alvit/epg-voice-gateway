@@ -20,4 +20,4 @@ uv==0.13.5 \
     --hash=sha256:f4e55a6e2a1089fe74ed50fbdf2df0f6f336ee148ad232b05932db5deee8007e \
     --hash=sha256:f867c5ec24c563afaae730a13e46cdf74a1a0b64c134286ff99762a96e2abf40 \
     --hash=sha256:fa8d26e08e34c29c0c4e820cf3181757086d547240b4f4d31ff1d8bd810ca946
-    # via -r requirements-export.in
+    # via -r container/requirements-export.in
