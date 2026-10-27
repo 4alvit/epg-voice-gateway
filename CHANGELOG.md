@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0b5 — beta candidate
 
-- Add bounded, offline M3U/XMLTV candidate fuzz assessment with regression coverage for malformed playlist URLs. This does not publish or accept a product release.
+- Add bounded, offline M3U/XMLTV candidate fuzz assessment with regression coverage for malformed playlist URLs. Candidate assessment remains separate from deployment and physical playback acceptance.
+
+- Refresh the hash-locked container build backend to setuptools 84.2.1 and the offline export tool to uv 0.13.5. Application runtime behavior and configuration are unchanged from beta.4.
+- Preserve the existing installed-container smoke check, complete image inventory and security gate. Rebuild and explicitly accept a new image before deployment; retain the prior accepted image and configuration for rollback.
 
 ## 0.1.0b3 — beta candidate
 
