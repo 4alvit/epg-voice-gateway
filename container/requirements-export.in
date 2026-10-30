@@ -1,2 +1,2 @@
-# Match the reviewed uv version in Checks. Used only in the export stage.
-uv==0.13.5
+# Single source for the exporter version used by the container and Checks.
+uv==0.13.6

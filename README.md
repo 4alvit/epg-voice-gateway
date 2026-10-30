@@ -263,6 +263,8 @@ uv run --extra test ruff check .
 from a hash-checked requirements export generated from `uv.lock` in an isolated
 Docker build stage. `uv export --locked --offline` refuses stale lock metadata
 and never resolves new versions. The exporter is excluded from the runtime image.
+Both CI jobs read the exporter version from `container/requirements-export.txt`,
+so updating that lock also updates CI without a separate workflow version pin.
 To update dependencies deliberately, run `uv lock`,
 then rerun the tests and rebuild the image. Container installer and build backends
 have separate hash-checked locks in `container/`. Update their reviewed inputs,

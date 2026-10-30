@@ -175,13 +175,17 @@ def test_ci_and_container_use_the_same_uv_exporter():
     assert f"uv=={expected}" in (root / "container/requirements-export.in").read_text().splitlines()
     jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
     exporters = [
-        step["with"]["version"]
+        step["with"]
         for job in jobs.values()
         for step in job.get("steps", [])
         if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
     ]
     assert exporters
-    assert all(version == expected for version in exporters)
+    assert all(
+        exporter.get("version-file") == "container/requirements-export.txt"
+        for exporter in exporters
+    )
+    assert all("version" not in exporter for exporter in exporters)
 
 
 def test_container_build_lock_preserves_declared_backends():
