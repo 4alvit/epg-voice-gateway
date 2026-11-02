@@ -2,6 +2,7 @@
 
 ## 0.1.0b6 — beta candidate
 
+- Cancel superseded pull-request checks while preserving every explicitly dispatched candidate export.
 - Keep the public Python package version consistent with distribution metadata and the project lock.
 
 - Refresh the pinned Python container and complete its build backend set, including Hatchling 1.33.0 and setuptools 84.2.1.
