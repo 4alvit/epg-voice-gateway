@@ -201,3 +201,25 @@ def test_container_build_lock_preserves_declared_backends():
         if "==" in line and not line.lstrip().startswith("#")
     }
     assert declared <= locked, f"Build lock omitted declared backends: {declared - locked}"
+
+
+def test_only_superseded_pull_request_checks_share_cancellation_scope():
+    concurrency = yaml.safe_load(WORKFLOW.read_text())["concurrency"]
+
+    def settings(event, run_id, number=None):
+        context = {"github.workflow": "Checks", "github.event_name": event,
+                   "github.event.pull_request.number": number, "github.run_id": run_id}
+        group = re.sub(r"\$\{\{.*?\}\}",
+                       lambda match: str(_workflow_expression(match.group(), context)),
+                       concurrency["group"])
+        return group, _workflow_expression(concurrency["cancel-in-progress"], context)
+
+    first, cancel = settings("pull_request", 100, 61)
+    assert cancel is True
+    assert first == settings("pull_request", 101, 61)[0]
+    assert first != settings("pull_request", 101, 62)[0]
+    for event in ("push", "workflow_dispatch"):
+        group, cancel = settings(event, 100)
+        assert cancel is False
+        assert group != first
+        assert group != settings(event, 101)[0]

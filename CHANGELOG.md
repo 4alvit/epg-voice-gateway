@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0b6 — beta candidate
+
+- Cancel superseded pull-request checks while preserving every explicitly dispatched candidate export.
+- Keep the public Python package version consistent with distribution metadata and the project lock.
+
+- Refresh the pinned Python container and complete its build backend set, including Hatchling 1.33.0 and setuptools 84.2.1.
+- Use the same hash-locked uv 0.13.6 exporter in the container and CI, and refresh pinned validation actions.
+- Publish newly qualified image, wheel and source bytes under a new beta version. Existing beta.5 assets remain immutable; runtime and physical playback acceptance are still required before RC or stable.
+
 ## 0.1.0b5 — beta candidate
 
 - Add bounded, offline M3U/XMLTV candidate fuzz assessment with regression coverage for malformed playlist URLs. Candidate assessment remains separate from deployment and physical playback acceptance.

@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import tarfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -77,3 +78,14 @@ def test_rejects_unqualified_or_ambiguous_export(tmp_path, change):
         (tmp_path / 'source.tar.gz').symlink_to(tmp_path / 'container-trivy.json')
     with pytest.raises(ValueError):
         candidate.seal(tmp_path, version, SOURCE, '123', copy.deepcopy(image))
+
+
+def test_public_package_version_matches_distribution_and_lock():
+    root = Path(__file__).resolve().parents[1]
+    from epg_voice_gateway import __version__
+
+    project = tomllib.loads((root / "pyproject.toml").read_text())["project"]
+    packages = tomllib.loads((root / "uv.lock").read_text())["package"]
+    locked = [item["version"] for item in packages if item["name"] == project["name"]]
+    assert __version__ == project["version"]
+    assert locked == [__version__]
