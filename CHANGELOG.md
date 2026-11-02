@@ -2,6 +2,7 @@
 
 ## 0.1.0b6 — beta candidate
 
+- Verify saved-image provenance with both classic Docker config IDs and containerd manifest/index IDs. Exercise the actual backend on every container check before manual export.
 - Cancel superseded pull-request checks while preserving every explicitly dispatched candidate export.
 - Keep the public Python package version consistent with distribution metadata and the project lock.
 

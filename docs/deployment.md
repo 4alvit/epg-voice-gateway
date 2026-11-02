@@ -269,3 +269,24 @@ not an access-control boundary: a fork can propose changes to workflow files.
 Do not allow public pull requests onto a private infrastructure runner. Retain
 that runner only for other explicitly trusted private workloads. This source
 change does not reconfigure or stop a running runner.
+
+## Beta image provenance
+
+Every public container check now saves the tested image and verifies its archive
+against `docker image inspect`, before an optional manual beta export. Classic
+Docker storage reports the configuration digest as the image ID. The
+[containerd implementation](https://github.com/moby/moby/blob/master/daemon/containerd/image_inspect.go)
+reports the target manifest or index digest instead. These are different objects;
+they must not be compared as though both were configuration hashes.
+
+The verifier retains the direct configuration-hash check for classic storage.
+For containerd it verifies the inspected descriptor, each selected manifest/index
+blob's digest and size, and the unique Linux AMD64 configuration referenced by
+that graph. The saved configuration must also contain the expected source label
+and platform. The release manifest always records the actual configuration
+digest as `image_config_digest`. Missing, altered or ambiguous evidence stops
+the export; changing Docker's storage backend does not bypass provenance checks.
+
+An exported beta still requires all workflow suites to finish successfully.
+Neither archive verification nor publication changes the deployment and physical
+playback acceptance flags.
