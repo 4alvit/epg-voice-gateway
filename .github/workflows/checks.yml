@@ -124,6 +124,22 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Verify saved image provenance on the actual Docker backend
+        run: |
+          set -euo pipefail
+          docker image save epg-voice-gateway:ci | gzip -n > "$RUNNER_TEMP/epg-runtime.tar.gz"
+          docker image inspect epg-voice-gateway:ci > "$RUNNER_TEMP/epg-image-inspect.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from scripts.release_candidate import saved_image_config
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          images = json.loads((temporary / 'epg-image-inspect.json').read_text())
+          if len(images) != 1:
+              raise ValueError('expected exactly one inspected image')
+          print(saved_image_config(temporary / 'epg-runtime.tar.gz', images[0], os.environ['GITHUB_SHA']))
+          PY
       - name: Export the exact tested beta image and Python distributions
         if: github.event_name == 'workflow_dispatch' && inputs.export_candidate && github.ref == 'refs/heads/main'
         env:
@@ -139,8 +155,7 @@ jobs:
             --mount "type=bind,src=$CANDIDATE_DIRECTORY,dst=/output" \
             --workdir /source --entrypoint python epg-voice-gateway:ci \
             -m hatchling build -t sdist -t wheel -d /output
-          docker image save epg-voice-gateway:ci | gzip -n > "$CANDIDATE_DIRECTORY/runtime-linux-amd64.tar.gz"
-          docker image inspect epg-voice-gateway:ci > "$RUNNER_TEMP/epg-image-inspect.json"
+          mv "$RUNNER_TEMP/epg-runtime.tar.gz" "$CANDIDATE_DIRECTORY/runtime-linux-amd64.tar.gz"
           git archive --format=tar HEAD | gzip -n > "$CANDIDATE_DIRECTORY/source.tar.gz"
           cp container-trivy.json container-sbom.cdx.json "$CANDIDATE_DIRECTORY/"
           python3 scripts/release_candidate.py \
