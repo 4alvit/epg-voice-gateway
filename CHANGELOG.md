@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0b7 — beta candidate
+
+- Repair the pinned runtime image for CVE-2026-109518 by upgrading APT and its matching library to Debian 3.0.4, with download retries disabled during bootstrap.
+- Retain signed Debian metadata, the existing XZ repair and the complete blocking container security scan.
+- Publish freshly qualified image and package bytes under a new beta; existing beta.6 assets remain immutable. Deployed runtime and physical receiver acceptance are still required before RC or stable.
+
 ## 0.1.0b6 — beta candidate
 
 - Verify saved-image provenance with both classic Docker config IDs and containerd manifest/index IDs. Exercise the actual backend on every container check before manual export.
