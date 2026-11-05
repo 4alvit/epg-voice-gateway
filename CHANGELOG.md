@@ -2,6 +2,7 @@
 
 ## 0.1.0b7 — beta candidate
 
+- Move the runtime to Python 3.15 with the matching, hash-locked Pydantic 2.14.2 and pydantic-core 2.50.2 pair; test Python 3.12, 3.14 and 3.15.
 - Repair the pinned runtime image for CVE-2026-109518 by upgrading APT and its matching library to Debian 3.0.4, with download retries disabled during bootstrap.
 - Retain signed Debian metadata, the existing XZ repair and the complete blocking container security scan.
 - Publish freshly qualified image and package bytes under a new beta; existing beta.6 assets remain immutable. Deployed runtime and physical receiver acceptance are still required before RC or stable.
