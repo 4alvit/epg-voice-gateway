@@ -175,3 +175,13 @@ both modules' real schemas and mocked policy plans plus real TLS handshakes.
 The [deployment guide](WORKER_SECURE_PROFILE.md) preserves state ownership and
 distinguishes those tests from cloud/device acceptance. This does not retroactively
 upgrade existing registry installations or clear every operator dependency.
+
+### APT security update in the runtime image
+
+The pinned Python 3.14 base predates Debian's fix for
+[CVE-2026-109518](https://security-tracker.debian.org/tracker/CVE-2026-109518).
+The image build upgrades both `apt` and `libapt-pkg7.0` to the fixed trixie
+version `3.0.4`, alongside the existing XZ repair. It disables APT download
+retries during this bootstrap, while retaining Debian's signature checks.
+The existing full-image scan and blocking security gate remain required;
+this targeted repair does not claim that all unfixed OS findings are resolved.
