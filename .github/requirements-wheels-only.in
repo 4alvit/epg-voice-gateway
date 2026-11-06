@@ -1,0 +1,2 @@
+# Compile targets that must resolve entirely from binary wheels.
+--only-binary :all:
