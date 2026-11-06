@@ -21,12 +21,15 @@ RESULTS = ("success", "failure", "cancelled", "skipped", "")
 @pytest.mark.parametrize("public", ["true", "false"])
 def test_ci_gate_requires_all_applicable_suites(python_result, node_result, container_result, worker_result, public):
     gate = yaml.safe_load(WORKFLOW.read_text())["jobs"]["python"]
-    assert set(gate["needs"]) == {"python_checks", "node_checks", "container", "worker_profile"}
+    assert set(gate["needs"]) == {"scope", "python_checks", "node_checks", "container", "worker_profile"}
     assert gate["if"].startswith("always() &&")
     gate_steps = [step for step in gate["steps"] if step.get("name") == "Verify required checks"]
     assert len(gate_steps) == 1
     step = gate_steps[0]
     assert step["env"] == {
+        "SCOPE_RESULT": "${{ needs.scope.result }}",
+        "SCOPE_RUN": "${{ needs.scope.outputs.run }}",
+        "SCOPE_REASON": "${{ needs.scope.outputs.reason }}",
         "PYTHON_RESULT": "${{ needs.python_checks.result }}",
         "NODE_RESULT": "${{ needs.node_checks.result }}",
         "CONTAINER_RESULT": "${{ needs.container.result }}",
@@ -35,7 +38,7 @@ def test_ci_gate_requires_all_applicable_suites(python_result, node_result, cont
     }
     result = subprocess.run(
         ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]],
-        env={**os.environ, "PYTHON_RESULT": python_result, "NODE_RESULT": node_result,
+        env={**os.environ, "SCOPE_RESULT": "success", "SCOPE_RUN": "true", "SCOPE_REASON": "non-documentation-change", "PYTHON_RESULT": python_result, "NODE_RESULT": node_result,
              "CONTAINER_RESULT": container_result, "WORKER_RESULT": worker_result, "PUBLIC_REPOSITORY": public},
         capture_output=True,
         text=True,
@@ -92,6 +95,8 @@ def _workflow_expression(expression, context):
 def test_public_forks_never_select_private_runner(private, event, same_repository):
     workflow = yaml.safe_load(WORKFLOW.read_text())
     context = {
+        "needs.scope.outputs.run": "true",
+        "needs.scope.outputs.reason": "non-documentation-change",
         "github.event.repository.private": private,
         "github.event_name": event,
         "github.event.pull_request.head.repo.full_name": (
@@ -223,3 +228,27 @@ def test_only_superseded_pull_request_checks_share_cancellation_scope():
         assert cancel is False
         assert group != first
         assert group != settings(event, 101)[0]
+
+
+@pytest.mark.parametrize("scope_result", RESULTS)
+@pytest.mark.parametrize("scope_run,reason", [("false", "documentation-only"), ("false", ""), ("", "documentation-only")])
+@pytest.mark.parametrize("child_result", RESULTS)
+def test_docs_gate_requires_proven_classification_and_exact_skips(scope_result, scope_run, reason, child_result):
+    gate = yaml.safe_load(WORKFLOW.read_text())["jobs"]["python"]
+    step = next(step for step in gate["steps"] if step.get("name") == "Verify required checks")
+    result = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]],
+        env={**os.environ, "SCOPE_RESULT": scope_result, "SCOPE_RUN": scope_run, "SCOPE_REASON": reason,
+             "PYTHON_RESULT": child_result, "NODE_RESULT": child_result, "CONTAINER_RESULT": child_result,
+             "WORKER_RESULT": child_result, "PUBLIC_REPOSITORY": "true"}, capture_output=True)
+    assert (result.returncode == 0) is (scope_result == "success" and scope_run == "false" and reason == "documentation-only" and child_result == "skipped")
+
+
+def test_all_expensive_jobs_require_scope_and_preserve_readme_build_input():
+    workflow = yaml.safe_load(WORKFLOW.read_text())
+    for name in ("python_checks", "node_checks", "container", "worker_profile"):
+        job = workflow["jobs"][name]
+        assert job["needs"] == "scope"
+        assert "needs.scope.outputs.run != 'false'" in job["if"]
+        assert "needs.scope.outputs.reason != 'documentation-only'" in job["if"]
+    scope = workflow["jobs"]["scope"]
+    assert scope["steps"][-1]["run"] == 'python3 scripts/change_scope.py --require-path README.md --documentation-paths-json \'["GOVERNANCE.md", "ROADMAP.md"]\''

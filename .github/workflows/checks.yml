@@ -16,12 +16,32 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  scope:
+    name: Change scope
+    if: >-
+      (github.event.repository.private != true ||
+       github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ${{ fromJSON(github.event.repository.private == true && '["self-hosted","Linux","X64","epg-voice-gateway"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
+      reason: ${{ steps.scope.outputs.reason }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: scope
+        run: python3 scripts/change_scope.py --require-path README.md --documentation-paths-json '["GOVERNANCE.md", "ROADMAP.md"]'
   python_checks:
+    needs: scope
     strategy:
       fail-fast: false
       matrix:
         python: ['3.12', '3.14', '3.15']
     if: >-
+      (needs.scope.outputs.run != 'false' || needs.scope.outputs.reason != 'documentation-only') &&
       (github.event.repository.private != true ||
        github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
@@ -55,7 +75,9 @@ jobs:
         if: ${{ always() }}
         run: rm -rf -- "$RUNNER_TEMP/epg-voice-uv-cache"
   node_checks:
+    needs: scope
     if: >-
+      (needs.scope.outputs.run != 'false' || needs.scope.outputs.reason != 'documentation-only') &&
       (github.event.repository.private != true ||
        github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
@@ -77,7 +99,8 @@ jobs:
       - run: node --test deploy/google-home-worker-vpc/relay.test.mjs
       - run: node --test deploy/alexa-worker-vpc/relay.test.mjs
   container:
-    if: github.event.repository.private != true
+    needs: scope
+    if: (needs.scope.outputs.run != 'false' || needs.scope.outputs.reason != 'documentation-only') && (github.event.repository.private != true)
     runs-on: ${{ fromJSON((vars.CI_RUNNER_MODE == 'self-hosted' || vars.CI_RUNNER_MODE == 'k3s') && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event_name) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && (vars.CI_RUNNER_LABELS || '[]') || '["ubuntu-latest"]') }}
     timeout-minutes: ${{ inputs.export_candidate && 30 || 15 }}
     steps:
@@ -172,7 +195,8 @@ jobs:
           retention-days: 7
 
   worker_profile:
-    if: github.event.repository.private != true
+    needs: scope
+    if: (needs.scope.outputs.run != 'false' || needs.scope.outputs.reason != 'documentation-only') && (github.event.repository.private != true)
     runs-on: ${{ fromJSON((vars.CI_RUNNER_MODE == 'self-hosted' || vars.CI_RUNNER_MODE == 'k3s') && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event_name) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && (vars.CI_RUNNER_LABELS || '[]') || '["ubuntu-latest"]') }}
     timeout-minutes: 70
     steps:
@@ -236,7 +260,7 @@ jobs:
 
   # Keep the existing check name while requiring each public build/test suite.
   python:
-    needs: [python_checks, node_checks, container, worker_profile]
+    needs: [scope, python_checks, node_checks, container, worker_profile]
     if: >-
       always() && (github.event.repository.private != true ||
        github.event_name != 'pull_request' ||
@@ -252,12 +276,27 @@ jobs:
 
       - name: Verify required checks
         env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          SCOPE_RUN: ${{ needs.scope.outputs.run }}
+          SCOPE_REASON: ${{ needs.scope.outputs.reason }}
           PYTHON_RESULT: ${{ needs.python_checks.result }}
           NODE_RESULT: ${{ needs.node_checks.result }}
           CONTAINER_RESULT: ${{ needs.container.result }}
           WORKER_RESULT: ${{ needs.worker_profile.result }}
           PUBLIC_REPOSITORY: ${{ github.event.repository.private != true }}
         run: |
+          if [[ "$SCOPE_RESULT" != success ]]; then
+            echo 'Change classification failed' >&2
+            exit 1
+          fi
+          if [[ "$SCOPE_RUN" == false && "$SCOPE_REASON" == documentation-only ]]; then
+            for result in "$PYTHON_RESULT" "$NODE_RESULT" "$CONTAINER_RESULT" "$WORKER_RESULT"; do
+              [[ "$result" == skipped ]] || { echo 'Unexpected documentation-only result' >&2; exit 1; }
+            done
+            echo 'Complete diff is documentation-only; build and runtime suites were not exercised.'
+            exit 0
+          fi
+          [[ "$SCOPE_RUN" == true ]] || { echo 'Invalid change classification' >&2; exit 1; }
           if [[ "$PYTHON_RESULT" != success || "$NODE_RESULT" != success || ( "$PUBLIC_REPOSITORY" == true && ( "$CONTAINER_RESULT" != success || "$WORKER_RESULT" != success ) ) ]]; then
             printf 'Required checks did not succeed: Python=%s Node=%s Container=%s Worker=%s\n' "$PYTHON_RESULT" "$NODE_RESULT" "$CONTAINER_RESULT" "$WORKER_RESULT" >&2
             exit 1

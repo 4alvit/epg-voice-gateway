@@ -281,3 +281,14 @@ Use a compatible channel variant or separately managed transcoding if needed.
 ## Project maintenance and security
 
 See [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), [Code of Conduct](CODE_OF_CONDUCT.md), [Governance](GOVERNANCE.md), [Roadmap](ROADMAP.md), [Release acceptance](RELEASING.md), [Changelog](CHANGELOG.md), [quality evidence](docs/QUALITY.md) and the [complete private HTTPS API](docs/tls-policy.md). OpenSSF answers describe verified capabilities and explicitly retain unmet Silver requirements, including backup access continuity.
+
+### Documentation-only CI
+
+The complete PR or push diff is classified before starting the Python matrix,
+relay tests, installed-container qualification or shared Worker provider build.
+Ordinary documentation may skip those suites; the required `python` aggregate
+accepts only a successful classification and the exact expected skip results.
+Independent CodeQL scanning remains active. `README.md` is required Python
+package metadata and keeps full validation, as do code, templates, dependency
+locks, workflows and uncertain diffs. Manual export runs always perform full
+qualification, including image vulnerability and package-inventory checks.
