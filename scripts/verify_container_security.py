@@ -25,6 +25,7 @@ def verify(report):
         raise ValueError("Missing image package results")
     inventory = set()
     libraries = []
+    zlib_packages = []
     blocked = []
     severity_counts = Counter()
     unfixed_os = []
@@ -42,6 +43,8 @@ def verify(report):
                 raise ValueError("Malformed package inventory")
             if kind == "os-pkgs" and package["Name"] == "liblzma5":
                 libraries.append(package)
+            if kind == "os-pkgs" and package["Name"] == "zlib1g":
+                zlib_packages.append(package)
             if kind == "lang-pkgs" and package["Name"].lower() == "pip":
                 blocked.append("pip must not be present in the final runtime")
         findings = result.get("Vulnerabilities", [])
@@ -66,12 +69,16 @@ def verify(report):
     if (len(libraries) != 1 or libraries[0]["Version"] != "5.8.1"
             or libraries[0].get("Release") != "1+deb13u2"):
         blocked.append("Expected exactly liblzma5 5.8.1-1+deb13u2")
+    if (len(zlib_packages) != 1 or zlib_packages[0]["Version"] != "1.3.dfsg+really1.3.1"
+            or zlib_packages[0].get("Release") != "1+deb13u1"
+            or zlib_packages[0].get("Epoch", 0) != 1):
+        blocked.append("Expected exactly zlib1g 1:1.3.dfsg+really1.3.1-1+deb13u1")
     return {
         "passed": not blocked,
         "blocking_findings": sorted(blocked),
         "all_severity_counts": dict(sorted(severity_counts.items())),
         "unfixed_os_high_critical": sorted(unfixed_os),
-        "scope": "All language HIGH/CRITICAL; fixed OS HIGH/CRITICAL; exact XZ repair",
+        "scope": "All language HIGH/CRITICAL; fixed OS HIGH/CRITICAL; exact XZ and zlib repairs",
     }
 
 

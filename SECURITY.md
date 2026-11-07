@@ -9,6 +9,14 @@ The maintainer aims to acknowledge within 7 days, investigate severity and affec
 Keep API tokens and HMAC keys independent, randomly generated and at least 32 bytes; use a secret manager or mode-0600 private environment file. Do not log bearer session URLs. Limit service exposure and privileges. The direct HTTPS profile is documented in docs/tls-policy.md. Existing LAN HTTP, HA, Alexa and Worker deployments have distinct transport and identity boundaries; do not infer public-service readiness from the private profile.
 
 Renovate updates Python and Actions dependencies; locked updates require review, tests and an advisory check. CI runs Ruff security rules over first-party Python and CodeQL over Python, JavaScript and workflows. Tests include malicious input, authorization and actual TLS boundaries. Native dependency internals are not claimed memory-safe solely because the application is Python.
+The runtime image explicitly upgrades zlib to Debian's
+`1:1.3.dfsg+really1.3.1-1+deb13u1` repair for
+[DSA-6613-1](https://security-tracker.debian.org/tracker/DSA-6613-1), including
+CVE-2026-76844 and CVE-2026-85091. The complete image inventory must contain that
+exact version, release and epoch. Existing XZ protections and all language
+HIGH/CRITICAL and fixed OS HIGH/CRITICAL gates remain in force; this is not a
+zero-vulnerability claim.
+
 ## Coupled lock regeneration
 
 Renovate updates the authoritative Python project and uv lock, then regenerates the coupled export in the same update. The runner permits only these literal uv commands with shell execution disabled. `--locked --offline --no-build` rejects a stale project/lock pair and prevents export-time build hooks. The compile step also forbids source builds. Use uv 0.13.4 and review all affected lock files together.

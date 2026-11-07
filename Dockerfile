@@ -5,12 +5,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
-# Upgrade the pinned base for DSA-6549-1 (XZ) and DSA-6607-1 (APT).
+# Upgrade the pinned base for DSA-6549-1 (XZ), DSA-6607-1 (APT), and DSA-6613-1 (zlib).
 # Disable download retries while the old APT client bootstraps its own fix;
 # Debian signature verification stays enabled throughout.
 RUN apt-get -o Acquire::Retries=0 update \
     && apt-get -o Acquire::Retries=0 install --yes --no-install-recommends --only-upgrade \
         apt=3.0.4 libapt-pkg7.0=3.0.4 liblzma5=5.8.1-1+deb13u2 \
+        zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb
 
 # Bootstrap only the official, hash-verified wheel before resolving/building anything.
