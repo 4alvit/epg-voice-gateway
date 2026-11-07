@@ -18,6 +18,8 @@ def report():
         "Results": [
             {"Class": "os-pkgs", "Type": "debian", "Packages": [
                 {"Name": "liblzma5", "Version": "5.8.1", "Release": "1+deb13u2"},
+                {"Name": "zlib1g", "Version": "1.3.dfsg+really1.3.1",
+                 "Release": "1+deb13u1", "Epoch": 1},
             ]},
             {"Class": "lang-pkgs", "Type": "python-pkg", "Packages": [
                 {"Name": "epg-voice-gateway", "Version": "0.1.0b3"},
@@ -115,6 +117,24 @@ def test_unpatched_or_duplicate_native_library_is_rejected():
 
     data = report()
     data["Results"][0]["Packages"] *= 2
+    assert not security.verify(data)["passed"]
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate", "unpatched", "version", "epoch"])
+def test_zlib_repair_is_required_even_without_scanner_findings(mutation):
+    data = report()
+    packages = data["Results"][0]["Packages"]
+    zlib = next(package for package in packages if package["Name"] == "zlib1g")
+    if mutation == "missing":
+        packages.remove(zlib)
+    elif mutation == "duplicate":
+        packages.append(dict(zlib))
+    elif mutation == "unpatched":
+        zlib["Release"] = "1"
+    elif mutation == "version":
+        zlib["Version"] = "1.2.13.dfsg"
+    else:
+        zlib.pop("Epoch")
     assert not security.verify(data)["passed"]
 
 
