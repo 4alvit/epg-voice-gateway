@@ -94,6 +94,23 @@
           "uv": {}
         }
       }
+    },
+    {
+      "description": "Worker modules use the independently qualified security derivative. Refresh the shared profile, original receipts, module constraints and locks together; see docs/WORKER_SECURE_PROFILE.md.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchPackageNames": [
+        "cloudflare/cloudflare"
+      ],
+      "matchFileNames": [
+        "deploy/google-home-worker-vpc/terraform/**",
+        "deploy/alexa-worker-vpc/terraform/**"
+      ],
+      "allowedVersions": "5.24.0"
     }
   ]
 }

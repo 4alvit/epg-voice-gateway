@@ -9,7 +9,7 @@ listed below. Selecting this profile is therefore required for the qualified
 Worker provisioning path.
 
 The adapter delegates to the exact shared
-[builder and local-state runtime](https://github.com/victron-venus/terraform-cloudflare-inverter-gateway/tree/fd90bb21075f40378409f8c8613156a7c224df19).
+[builder and local-state runtime](https://github.com/victron-venus/terraform-cloudflare-inverter-gateway/tree/648f853b9eaed2cd5640c428c18df3952cb0c2f9).
 Its [qualification pins](../security/worker-profile/README.md) explain the
 external byte authority and retained original test receipts. It never accepts
 an arbitrary executable on the strength of self-supplied provenance.
@@ -25,10 +25,10 @@ the package. Artifact retention is 30 days; the original receipts remain in Git.
 
 ```sh
 git clone https://github.com/victron-venus/terraform-cloudflare-inverter-gateway.git ../cloudflare-profile
-git -C ../cloudflare-profile checkout --detach fd90bb21075f40378409f8c8613156a7c224df19
-# If rebuilding, use the actual Go 1.27.3 Linux amd64 executable:
+git -C ../cloudflare-profile checkout --detach 648f853b9eaed2cd5640c428c18df3952cb0c2f9
+# If rebuilding, use the actual Go 1.27.4 Linux amd64 executable:
 python3 scripts/worker_profile.py --shared-source ../cloudflare-profile build \
-  --go /absolute/path/to/go1.27.3/bin/go --output /private/path/qualified-provider
+  --go /absolute/path/to/go1.27.4/bin/go --output /private/path/qualified-provider
 # Run this even when using a downloaded CI artifact:
 python3 scripts/worker_profile.py --shared-source ../cloudflare-profile verify \
   --provider-dir /private/path/qualified-provider
@@ -46,6 +46,27 @@ HashiCorp. The shared runtime checks the executable and the archive against its
 checked-in hashes before execution. The local provider is a dependency of the
 unchanged shared mirror helper; these EPG modules do not instantiate it. No
 registry fallback, unpinned provider discovery or automatic update is enabled.
+
+## Coordinated provider updates
+
+The two Worker modules and their registry lock files retain upstream version
+`5.24.0`, matching the qualified derivative's actual provider schema and mirror.
+A registry-only update to `5.29.0` cannot use this `5.24.0` binary. The adapter
+checks both literal module requirements and lock versions before compiling;
+OpenTofu's real schema and plan checks remain mandatory afterward.
+
+Renovate's exact-version rule applies only to `cloudflare/cloudflare` in these
+two module directories. Other application and provider dependencies keep their
+existing update policy. This does not waive security alerts, source vulnerability
+scanning, or the requirement to fix a vulnerable qualified profile.
+
+For a new upstream provider version, first qualify the corresponding shared
+source, compiler and module graph, all original package-test receipts and real
+TLS tests. Then review one coordinated update of this profile's source/provenance/
+binary pins, both module constraints and locks, the scoped Renovate rule, and
+this guide. EPG must reproduce the new expected bytes and pass both Worker
+plans and TLS checks before adoption. No version relabelling, registry fallback,
+or automatic hash refresh can substitute for that qualification.
 
 ## New workspace and deployment
 
@@ -96,7 +117,7 @@ remapping.
 The old official Cloudflare binary's GO-2026-4870 / CVE-2026-32283,
 GO-2026-4918 / CVE-2026-33814, GO-2026-4947 / CVE-2026-32280 and
 GO-2026-5037 / CVE-2026-27145 are addressed only when this qualified derivative
-is actually selected. Its Go 1.27.3/module patch does not upgrade an already
+is actually selected. Its Go 1.27.4/module patch also addresses GO-2026-6859 and does not upgrade an already
 installed registry provider. This profile does not attest to operator-installed
 Wrangler, cloudflared, Home Assistant, host OS packages or live cloud acceptance;
 those remain explicit deployment prerequisites. Relay behavior, publication
