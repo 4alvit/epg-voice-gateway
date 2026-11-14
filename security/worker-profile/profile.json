@@ -1,151 +1,151 @@
 {
   "schema": 1,
   "repository": "victron-venus/terraform-cloudflare-inverter-gateway",
-  "source_commit": "fd90bb21075f40378409f8c8613156a7c224df19",
-  "tested_head": "2f42c5cdb61a2439d5e11b0d5413075983a78fd3",
-  "qualification_id": "d93dd86c24942a9140dea60b06932f00b2e4a5e8",
-  "run_id": 39913575051,
+  "source_commit": "648f853b9eaed2cd5640c428c18df3952cb0c2f9",
+  "tested_head": "a4e66772b7c3b1737c5cff89979843477d823126",
+  "qualification_id": "7a08269b18aae0afa33e6942ec4023b315557db9",
+  "run_id": 43552645192,
   "run_attempt": 1,
-  "run_url": "https://github.com/victron-venus/terraform-cloudflare-inverter-gateway/actions/runs/39913575051",
+  "run_url": "https://github.com/victron-venus/terraform-cloudflare-inverter-gateway/actions/runs/43552645192",
   "platform": "linux_amd64",
-  "go_version": "go1.27.3",
+  "go_version": "go1.27.4",
   "binary_name": "terraform-provider-cloudflare_v5.24.0",
-  "binary_sha256": "cc4fb9bb02311dcffbada691ec3c080635e35782c0ec46275fab85168805e4f1",
+  "binary_sha256": "99331c0f0c0c79d21bee25c2345ef06984b7309411fec0ca6038d24b877846d0",
   "shared_files": {
     "LICENSE": "d37fa7bf12f2b166d0e7f8fd167027da209a140f6cfd6254706a4c9d00ba1f94",
-    ".terraform.lock.hcl": "0cd9882e2891f72490c7a80b6656cbd79989a8a7627bf64e3273df7f71eea6a8",
-    "scripts/build_secure_provider.py": "390a03612c891083847a0c9e75f1aab685671a668e66fe88bc15facdaf3c4133",
+    ".terraform.lock.hcl": "2d46ea52dc5163361ba1460f7c246fd126632162f7e45d80c563503a73a1f35d",
+    "scripts/build_secure_provider.py": "7b734598b67bff213c3cc14afd6d1a6f3a36f8811e8184a818ceed624fe227b7",
     "scripts/provider_test_shards.py": "5fc74f444152a4f9fe3e0b9bfa47194671db478b5841dd3c9f86b8b0907cfc84",
     "scripts/run_secure_profile.py": "0aea4ace33f33a29b907348feabac3ef2389594dd2ce98bcece5009fbe35b4da",
     "scripts/check_secure_provider.py": "0c388ddd3e5a39195c0590d542d99dbe3e880bfe39da10d421ffb990e5220592",
     "scripts/check_opentofu.py": "e5adfe75fab9dc43f890cdfa76d79931dda7ca138a25ce547f7eb8036ea7f373",
-    "scripts/test_tls_profile.py": "1155313994159360b1cafbaa64dc9e7cbe44e0c38ffe9ee8dbb66142ed840488",
-    "security/provider/manifest.json": "89309d16ba1d2846861e829dea7fba2bdf07b7716072df5da9ef6c0df40e3678",
-    "security/provider/go.mod": "0445e963cfd7509177fa2664c62e232a603d85179844885edfd20a4c5381e103",
-    "security/provider/go.sum": "aa6b503f22d3b307d1876727b4fd6ca0c9d74194e4a29e2a15aee50ca458dcd0",
+    "scripts/test_tls_profile.py": "4256acaf0cac6fe6bb06ed302bf4b366594762b00f4d75f1af721c940fbaef38",
+    "security/provider/manifest.json": "f38f406273eff85526703940d8cc58d1c9cfbcb5748d42c159fac690398e2e31",
+    "security/provider/go.mod": "1cd6277f7e56a82a69df381e0ef9547d818d67072b4d4c9cc02dd3fdb2181bcb",
+    "security/provider/go.sum": "061f95edea5f2879018cc37429b1c63b1c4ffa193f1b4338a3af7b8cbb2bf635",
     "security/provider/LICENSE": "8659207f29b327845dd32bcc5bcbde42f7b9ed221d8596c38c13a9ac00cdb07e",
     "security/provider/NOTICE": "9cb2f465122e0850dd0374fcf78b280a6ef2bbb6a527bcf0242b09bb972992e6",
     "security/provider/opentofu-binaries.json": "b1cf6679cd2ffec5b26475287c539f9fee8ce1ebc6ce0f2bd7e2127cba94a3f5",
-    "requirements-security-tests.txt": "0bfb058a6d251444c83620173ab4060f6d0f25360df84d6ca13c79f6e024a991"
+    "requirements-security-tests.txt": "2e786a9b1cce76f1a7d304472d5233946cd1e16eae21327764381f821d1558b9"
   },
   "receipts": [
     {
       "index": 0,
       "file": "receipts/shard-0.zip",
-      "sha256": "cc34bab3d98f78a31cdf00d3eace6af4b80b3cf6836ef09007a8f25b211d7f15",
-      "artifact_id": 12487588741,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12487588741"
+      "sha256": "1b1182ae4ce954feb991accc909a7fc0b5130e5c9439b4b3184130980477e661",
+      "artifact_id": 14098965401,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14098965401"
     },
     {
       "index": 1,
       "file": "receipts/shard-1.zip",
-      "sha256": "219e1a57fffa5930896acd89612a354205aeb46b4b5d67e6fa8ee68be07519c0",
-      "artifact_id": 12485936720,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12485936720"
+      "sha256": "362739966f298619e6d3323be006fb55c2f8e4f2cbc16af628a87afdc4c52ca0",
+      "artifact_id": 14098581544,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14098581544"
     },
     {
       "index": 2,
       "file": "receipts/shard-2.zip",
-      "sha256": "7feb1bf6594dfba2b430976526a792433ff7e969a4f845ad05683d419b21fec8",
-      "artifact_id": 12489240996,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12489240996"
+      "sha256": "25f2d3f2c971aab8e5fb4dbb33bbe0cf5a6c0ec997213a1ce37f48f4cb99d40f",
+      "artifact_id": 14098432447,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14098432447"
     },
     {
       "index": 3,
       "file": "receipts/shard-3.zip",
-      "sha256": "0058f438b74a0701a90e46ef5878090d65c4ecb9f500414dce16f96f009ce640",
-      "artifact_id": 12487040578,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12487040578"
+      "sha256": "bb0ed39a6a3d8849663a6c2fbc2f887f32094c44a8b3ab713e24a4791c49a4ea",
+      "artifact_id": 14098122683,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14098122683"
     },
     {
       "index": 4,
       "file": "receipts/shard-4.zip",
-      "sha256": "9147f45671f83cdef76d33389e55014d4f2efb6785fdeab332299f93776ab6d4",
-      "artifact_id": 12488624083,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12488624083"
+      "sha256": "2a71480adb77c0e527021895cc411d654ff12ce285f4edc02f1b5509c5ea348c",
+      "artifact_id": 14100074045,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14100074045"
     },
     {
       "index": 5,
       "file": "receipts/shard-5.zip",
-      "sha256": "7a54618e22db4f4843ec36f646a14bce54237b02a82705995973ad608aed7493",
-      "artifact_id": 12489827906,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12489827906"
+      "sha256": "72c754eb1d0a13098719df6055c075d90dcc9d6b0063b851d5f52c74f823e35d",
+      "artifact_id": 14100960125,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14100960125"
     },
     {
       "index": 6,
       "file": "receipts/shard-6.zip",
-      "sha256": "6b6331414a8f40a98bfc6311ba448ced65bc6433600c968091e40ee31c155a4f",
-      "artifact_id": 12487321034,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12487321034"
+      "sha256": "b8ea6e7c18b5527ce055934c15e25e959169b8316edf07679c8c841920f4dcc7",
+      "artifact_id": 14099083942,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14099083942"
     },
     {
       "index": 7,
       "file": "receipts/shard-7.zip",
-      "sha256": "2d8fe2a5cc1ffe98e6c31b67caba2ed4f0a7b09da055763267f033e43a92f43f",
-      "artifact_id": 12488877291,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12488877291"
+      "sha256": "6929f3467f99c59755461bf8acf10a6ccaaafd00a3cd80a83aa9d13b32a9e6ab",
+      "artifact_id": 14099338657,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14099338657"
     },
     {
       "index": 8,
       "file": "receipts/shard-8.zip",
-      "sha256": "28b5556a646745d5bae93d271fd4aefb689b4c2f9eb5e3f577b6cb2034d5d0f9",
-      "artifact_id": 12489422466,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12489422466"
+      "sha256": "8dc071328993235ef217cf82b53b6d11d6d675a9e3a5430a35c725cb4b76e288",
+      "artifact_id": 14101278269,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14101278269"
     },
     {
       "index": 9,
       "file": "receipts/shard-9.zip",
-      "sha256": "aa8b5af72e80444b450fa7bb41ab4c328498be058d8316d2556571ef9e8eedc6",
-      "artifact_id": 12488743346,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12488743346"
+      "sha256": "84294bb1f171a8f9bfcd5b9eff2e0037c6751b25ed0388b9dc99abd8282c218a",
+      "artifact_id": 14101716826,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14101716826"
     },
     {
       "index": 10,
       "file": "receipts/shard-10.zip",
-      "sha256": "a20531f983472bd17e4593e08b12acc3c0726512e7e233796bcfee0d2d7705cb",
-      "artifact_id": 12487139993,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12487139993"
+      "sha256": "c561a653a5bb517128cbcb891cd4b76b592bb233d7389a77adcb98e089e189ab",
+      "artifact_id": 14100984544,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14100984544"
     },
     {
       "index": 11,
       "file": "receipts/shard-11.zip",
-      "sha256": "ce71d484d9cee8b04aa26064fa8a31b2eb9908832d9bbe4d9e9098a3dcf17a50",
-      "artifact_id": 12488688105,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12488688105"
+      "sha256": "32bb28ee839b3935f0278c7ba15499b6ff3c660098bddba47724d241a5a45a84",
+      "artifact_id": 14102405468,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14102405468"
     },
     {
       "index": 12,
       "file": "receipts/shard-12.zip",
-      "sha256": "0af8c0bdfe1fdda43f66baac96eb10364cd5f1428155f1e6318aed7b31b0d9b2",
-      "artifact_id": 12488718583,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12488718583"
+      "sha256": "0af60566819f92015e3cf95882914e0293c47124fe53407eb24a7350513fd258",
+      "artifact_id": 14103011352,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14103011352"
     },
     {
       "index": 13,
       "file": "receipts/shard-13.zip",
-      "sha256": "f7deee7ea162cc72c818a92691a74198e2e7650a30e2ab4ccbc2270391a03cdf",
-      "artifact_id": 12487481144,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12487481144"
+      "sha256": "cd6d2570af3a5823efa95c53c5f67d4e4cd4a97f67e15d4650285cddac65c4c0",
+      "artifact_id": 14102614144,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14102614144"
     },
     {
       "index": 14,
       "file": "receipts/shard-14.zip",
-      "sha256": "74d18256e4b41b6da974d363e6e01b1575d0de5aee9d72c3241a6f6da2b0434c",
-      "artifact_id": 12488767433,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12488767433"
+      "sha256": "383227e663669ad2308d7e19d6aafd98cf3ce75121cb47a3a6ab7aad4b757a08",
+      "artifact_id": 14102968900,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14102968900"
     },
     {
       "index": 15,
       "file": "receipts/shard-15.zip",
-      "sha256": "1b124889b55306036e92beb541871f3b17d1a5641b71a9820e8f521c5eaf6e33",
-      "artifact_id": 12486143130,
-      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12486143130"
+      "sha256": "8bcd53982b7c5db8e6b6fb9163cf3a4b19b3a249b16a1c5f1e6303720e3f9194",
+      "artifact_id": 14104490999,
+      "artifact_url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14104490999"
     }
   ],
-  "qualified_provenance_sha256": "597719e3eb2680cf7c2bb0a61c11863db259234b817ac172246c53b13669cc88",
+  "qualified_provenance_sha256": "c9ebd92c81903efe7235073c3513f1cb637fc37c5483b00162eaed5e05757d0a",
   "qualification_artifact": {
-    "id": 12492335817,
-    "digest": "sha256:d57fa08d3fb9d3e8d91fdd643610eea450e2f352536dce06c568b18a33b2fe89",
-    "url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/12492335817"
+    "id": 14104419470,
+    "digest": "sha256:958dcc2acda332b6639e0d2512be74d90266c24e49cce7724f5b102abc00b2f8",
+    "url": "https://api.github.com/repos/victron-venus/terraform-cloudflare-inverter-gateway/actions/artifacts/14104419470"
   }
 }
