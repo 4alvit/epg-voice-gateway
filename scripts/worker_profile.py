@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +36,44 @@ def checked_bytes(path, expected):
 
 def profile():
     return json.loads((PINS / "profile.json").read_text())
+
+
+def verify_worker_provider_versions(pins):
+    """Reject incompatible literal module/lock pins before the expensive build.
+
+    This checks the repository's small, formatted provider declarations, not
+    arbitrary HCL. OpenTofu still validates the actual schemas and plans.
+    """
+    qualified = json.loads(checked_bytes(
+        PINS / "qualified-provenance.json", pins["qualified_provenance_sha256"]
+    ))["upstream_version"]
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", qualified):
+        raise ValueError("Invalid qualified provider version")
+
+    def attribute(body, name):
+        values = re.findall(rf'^\s*{name}\s*=\s*"([^"\n]+)"\s*$', body, re.MULTILINE)
+        return values[0] if len(values) == 1 else None
+
+    for module in ("google-home-worker-vpc", "alexa-worker-vpc"):
+        directory = ROOT / "deploy" / module / "terraform"
+        declaration = (directory / "versions.tf").read_text()
+        blocks = re.findall(r"\bcloudflare\s*=\s*\{([^{}]*)\}", declaration, re.DOTALL)
+        constraint = attribute(blocks[0], "version") if len(blocks) == 1 else None
+        if (len(blocks) != 1
+                or attribute(blocks[0], "source") != "registry.terraform.io/cloudflare/cloudflare"
+                or constraint is None
+                or not re.fullmatch(rf"=?\s*{re.escape(qualified)}", constraint.strip())):
+            raise ValueError(f"{module} requires the qualified Cloudflare {qualified} exactly")
+        lock = (directory / ".terraform.lock.hcl").read_text()
+        blocks = re.findall(
+            r'provider\s+"registry\.terraform\.io/cloudflare/cloudflare"\s*\{([^{}]*)\}',
+            lock, re.DOTALL,
+        )
+        constraint = attribute(blocks[0], "constraints") if len(blocks) == 1 else None
+        if (len(blocks) != 1 or attribute(blocks[0], "version") != qualified
+                or constraint is None
+                or not re.fullmatch(rf"=?\s*{re.escape(qualified)}", constraint.strip())):
+            raise ValueError(f"{module} lock differs from qualified Cloudflare {qualified}")
 
 
 @contextlib.contextmanager
@@ -155,6 +194,8 @@ def main():
             item.add_argument("arguments", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     pins = profile()
+    if args.mode in ("build", "check"):
+        verify_worker_provider_versions(pins)
     with shared_snapshot(args.shared_source, pins) as snapshot:
         if args.mode == "build":
             build(args, snapshot, pins)

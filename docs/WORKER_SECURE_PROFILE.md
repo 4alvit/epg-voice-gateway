@@ -47,6 +47,27 @@ checked-in hashes before execution. The local provider is a dependency of the
 unchanged shared mirror helper; these EPG modules do not instantiate it. No
 registry fallback, unpinned provider discovery or automatic update is enabled.
 
+## Coordinated provider updates
+
+The two Worker modules and their registry lock files retain upstream version
+`5.24.0`, matching the qualified derivative's actual provider schema and mirror.
+A registry-only update to `5.29.0` cannot use this `5.24.0` binary. The adapter
+checks both literal module requirements and lock versions before compiling;
+OpenTofu's real schema and plan checks remain mandatory afterward.
+
+Renovate's exact-version rule applies only to `cloudflare/cloudflare` in these
+two module directories. Other application and provider dependencies keep their
+existing update policy. This does not waive security alerts, source vulnerability
+scanning, or the requirement to fix a vulnerable qualified profile.
+
+For a new upstream provider version, first qualify the corresponding shared
+source, compiler and module graph, all original package-test receipts and real
+TLS tests. Then review one coordinated update of this profile's source/provenance/
+binary pins, both module constraints and locks, the scoped Renovate rule, and
+this guide. EPG must reproduce the new expected bytes and pass both Worker
+plans and TLS checks before adoption. No version relabelling, registry fallback,
+or automatic hash refresh can substitute for that qualification.
+
 ## New workspace and deployment
 
 Create a **new** private workspace and preserve each module's relative relay
