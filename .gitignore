@@ -18,3 +18,4 @@ operations/
 .fuzz-venv/
 .fuzz-toolkit/
 fuzz-output/
+A*S.md
