@@ -18,6 +18,23 @@ The 45-dependency result covers the selected installed Python environment. It do
 
 Before treating the whole project as meeting vulnerability-remediation criteria, record the exact resolved build packages and container platform/digest, scan their dependencies, and review the provider executable and its Go dependencies for applicable advisories. Upgrade or provide a fully tested compatible replacement for affected components. Keep unverified criteria marked unmet until this work is complete; a transport test alone is not a dependency audit.
 
+### Container zstd security update — 2026-11-25
+
+The pinned runtime base contains `libzstd1` version `1.5.7+dfsg-1`, which is
+affected by [DSA-6657-1](https://security-tracker.debian.org/tracker/DSA-6657-1)
+and [CVE-2026-124851](https://security-tracker.debian.org/tracker/CVE-2026-124851).
+Debian publishes the fixed revision `1.5.7+dfsg-1+deb13u1` in `trixie-security`,
+so the Dockerfile upgrades only that existing library to the exact revision from
+the authenticated repositories, as it already does for XZ, APT and zlib. The base
+digest and every installer, build and runtime lock stay unchanged, and the two
+revisions declare the same `libc6 (>= 2.34)` requirement, so no other package
+changes.
+
+The blocking gate on fixable HIGH/CRITICAL OS findings is what reported this. The
+exact XZ and zlib requirements, the language-package rule and the complete
+retained inventory are unchanged, and unfixed OS findings stay listed; this
+targeted repair is not a zero-vulnerability claim.
+
 ### Runtime installer vendors and full-image gate — 2026-10-24
 
 The unpublished 0.1.0b2 image passed the earlier narrow XZ check, but its complete
